@@ -4,9 +4,11 @@ import 'package:macos_ui/macos_ui.dart' as macos;
 import 'package:provider/provider.dart';
 import 'package:system_tray/system_tray.dart';
 import 'package:window_manager/window_manager.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'services/audio_service.dart';
 import 'services/theme_service.dart';
 import 'services/custom_name_service.dart';
+import 'services/update_service.dart';
 import 'screens/home_screen.dart';
 import 'theme/app_theme.dart';
 import 'platform.dart' as _plat;
@@ -79,6 +81,8 @@ Future<void> _initSystemTray() async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  final prefs = await SharedPreferences.getInstance();
 
   await windowManager.ensureInitialized();
   
@@ -101,11 +105,13 @@ void main() async {
 
   await _initSystemTray();
 
-  runApp(const AudioRouterApp());
+  runApp(AudioRouterApp(prefs: prefs));
 }
 
 class AudioRouterApp extends StatelessWidget {
-  const AudioRouterApp({super.key});
+  final SharedPreferences prefs;
+  
+  const AudioRouterApp({super.key, required this.prefs});
 
   @override
   Widget build(BuildContext context) {
@@ -114,6 +120,7 @@ class AudioRouterApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => _audioService = AudioService()),
         ChangeNotifierProvider(create: (_) => ThemeService()),
         ChangeNotifierProvider(create: (_) => CustomNameService()),
+        Provider<UpdateService>(create: (_) => UpdateService(prefs)),
       ],
       child: Consumer<ThemeService>(
         builder: (context, themeService, _) {

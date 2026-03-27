@@ -1,0 +1,50 @@
+workflows:
+  macos-release:
+    name: Build & Release (macOS)
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+
+    environment:
+      flutter: stable
+      vars:
+        GITHUB_TOKEN: $GITHUB_TOKEN
+
+    triggering:
+      events:
+        - tag
+      tag_patterns:
+        - pattern: 'v*'
+
+    scripts:
+      - name: Install dependencies
+        script: flutter pub get
+
+      - name: Build macOS release
+        script: flutter build macos --release
+
+      - name: Install create-dmg
+        script: brew install create-dmg
+
+      - name: Package DMG
+        script: |
+          VERSION=$(echo $CM_TAG | sed 's/^v//')
+          create-dmg \
+            --volname "AudioRouter" \
+            --window-pos 200 120 \
+            --window-size 600 400 \
+            --icon-size 100 \
+            --icon "AudioRouter.app" 150 185 \
+            --app-drop-link 450 185 \
+            --no-internet-enable \
+            "AudioRouter-${VERSION}.dmg" \
+            "build/macos/Build/Products/Release/AudioRouter.app"
+
+      - name: Upload DMG to GitHub Release
+        script: |
+          VERSION=$(echo $CM_TAG | sed 's/^v//')
+          gh release upload "$CM_TAG" "AudioRouter-${VERSION}.dmg" \
+            --repo DevOpenMindset/audio_router \
+            --clobber
+        
+    artifacts:
+      - "*.dmg"

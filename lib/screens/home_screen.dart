@@ -18,6 +18,8 @@ import '../widgets/toast_notification.dart';
 import '../widgets/macos_routing_banner.dart';
 import '../widgets/adaptive_widgets.dart';
 import '../widgets/donation_dialog.dart';
+import '../widgets/update_dialog.dart';
+import '../services/update_service.dart';
 import '../l10n/app_localizations.dart';
 import 'settings_screen.dart';
 
@@ -55,10 +57,22 @@ class _HomeScreenState extends State<HomeScreen> {
         }
       };
 
-      // Startup donation popup — shown after a short delay.
-      Future.delayed(const Duration(milliseconds: 1500), () {
+      // Startup update check + donation popup (shown after delay)
+      Future.delayed(const Duration(milliseconds: 1500), () async {
         if (!mounted) return;
-        showDonationDialog(context);
+        
+        final updateService = context.read<UpdateService>();
+        final updateInfo = await updateService.checkForUpdates();
+        
+        if (!mounted) return;
+        
+        if (updateInfo != null) {
+          // If update is available, show update dialog instead of donation
+          showUpdateDialog(context, updateInfo);
+        } else {
+          // No update, fallback to donation popup
+          showDonationDialog(context);
+        }
       });
     });
   }

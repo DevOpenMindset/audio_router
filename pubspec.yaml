@@ -11,7 +11,7 @@ dependencies:
     sdk: flutter
   ffi: ^2.1.0
   provider: ^6.1.1
-  shared_preferences: ^2.2.2
+  shared_preferences: ^2.5.5
   system_tray: ^2.0.3
   window_manager: ^0.3.8
   collection: ^1.18.0
@@ -19,6 +19,8 @@ dependencies:
   fluent_ui: ^4.9.0
   macos_ui: ^2.0.0
   cupertino_icons: ^1.0.8
+  http: ^1.6.0
+  package_info_plus: ^9.0.0
 
 dev_dependencies:
   flutter_test:

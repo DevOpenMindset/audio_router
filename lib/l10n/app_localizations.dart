@@ -111,7 +111,21 @@ class AppLocalizations {
   String get donateCoffee   => _p(en: 'Buy Me a Coffee', fr: 'Buy Me a Coffee', es: 'Buy Me a Coffee');
   String get maybeLater     => _p(en: 'Maybe later', fr: 'Peut-être plus tard', es: 'Quizás más tarde');
   String get thankYou       => _p(en: 'Thank you! ❤️', fr: 'Merci ! ❤️', es: '¡Gracias! ❤️');
+
+  // ── Auto-Update ───────────────────────────────────────────
+  String get updateAvailable => _p(en: 'Update Available', fr: 'Mise à jour disponible', es: 'Actualización Disponible');
+  String get updateBody      => _p(
+    en: 'A new version of AudioRouter is available on GitHub.',
+    fr: 'Une nouvelle version d\'AudioRouter est disponible sur GitHub.',
+    es: 'Hay una nueva versión de AudioRouter disponible en GitHub.',
+  );
+  String get downloadUpdate  => _p(en: 'Download', fr: 'Télécharger', es: 'Descargar');
+  String get installUpdate   => _p(en: 'Install Update', fr: 'Installer la mise à jour', es: 'Instalar actualización');
+  String get downloading     => _p(en: 'Downloading...', fr: 'Téléchargement...', es: 'Descargando...');
+  String get skipUpdate      => _p(en: 'Skip this version', fr: 'Ignorer cette version', es: 'Omitir esta versión');
+  String get checkUpdates    => _p(en: 'Check for updates at startup', fr: 'Chercher les MAJ au démarrage', es: 'Buscar actualizaciones al inicio');
 }
+
 
 extension AppLocalizationsX on BuildContext {
   AppLocalizations get l10n {

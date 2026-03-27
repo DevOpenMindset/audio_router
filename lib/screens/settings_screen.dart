@@ -5,6 +5,7 @@ import 'package:macos_ui/macos_ui.dart' as macos;
 import 'package:provider/provider.dart';
 import '../services/audio_service.dart';
 import '../services/theme_service.dart';
+import '../services/update_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/adaptive_widgets.dart';
 import '../widgets/donation_dialog.dart';
@@ -123,6 +124,17 @@ class SettingsScreen extends StatelessWidget {
 
           const SizedBox(height: 16),
 
+          // Updates
+          Consumer<UpdateService>(
+            builder: (context, updateService, _) {
+              return _SettingToggle(
+                label: l10n.checkUpdates,
+                description: l10n.updateBody.split('\n').first,
+                value: updateService.checkAutoUpdates,
+                onChanged: (v) => updateService.setCheckAutoUpdates(v),
+              );
+            },
+          ),
         ],
       ),
     );
@@ -214,6 +226,16 @@ class SettingsScreen extends StatelessWidget {
             ),
           ),
 
+          // Updates
+          Consumer<UpdateService>(
+            builder: (ctx, updateService, _) => _macToggle(
+              context: context,
+              icon: CupertinoIcons.cloud_download,
+              label: l10n.checkUpdates,
+              value: updateService.checkAutoUpdates,
+              onChanged: (v) => updateService.setCheckAutoUpdates(v),
+            ),
+          ),
           Container(height: 0.5, color: AppColors.border),
           const SizedBox(height: 4),
 
