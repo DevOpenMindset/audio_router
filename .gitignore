@@ -46,7 +46,7 @@ app.*.map.json
 
 # Project-specific
 *.pfx
-*.txt
+# *.txt
 *.icns
 .flutter-plugins
 .flutter-plugins-dependencies
