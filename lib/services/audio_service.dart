@@ -770,8 +770,10 @@ class AudioService extends ChangeNotifier {
   void _evaluateDuckRules() {
     if (_sessions.isEmpty || _duckRules.isEmpty) return;
 
+    // Use peak level (updated at 30fps) instead of isActive (updated every 2s)
+    // for near-instant duck trigger/restore response.
     final activeNames = _sessions
-        .where((s) => s.isActive)
+        .where((s) => s.peakLevel > 0.01)
         .map((s) => s.processName.toLowerCase())
         .toSet();
 
