@@ -1,14 +1,11 @@
 import 'dart:io' show Platform;
-import '../platform.dart';
 import 'package:flutter/cupertino.dart' show CupertinoIcons;
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:macos_ui/macos_ui.dart' as macos;
 import 'package:provider/provider.dart';
 import 'package:window_manager/window_manager.dart';
 import '../services/audio_service.dart';
-import '../services/custom_name_service.dart';
 import '../services/theme_service.dart';
-import '../models/audio_models.dart';
 import '../theme/app_theme.dart';
 import '../widgets/title_bar.dart';
 import '../widgets/session_card.dart';
@@ -16,7 +13,6 @@ import '../widgets/device_footer.dart';
 import '../widgets/duck_rules_panel.dart';
 import '../widgets/toast_notification.dart';
 import '../widgets/macos_routing_banner.dart';
-import '../widgets/adaptive_widgets.dart';
 import '../widgets/donation_dialog.dart';
 import '../widgets/update_dialog.dart';
 import '../services/update_service.dart';
@@ -31,18 +27,12 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final TextEditingController _searchCtrl = TextEditingController();
-  String _searchQuery = '';
   // Keep a direct ref to unregister the callback on dispose
   AudioService? _audioService;
 
   @override
   void initState() {
     super.initState();
-    _searchCtrl.addListener(() {
-      setState(() => _searchQuery = _searchCtrl.text);
-    });
-
     // Register device change callback after first frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -80,7 +70,6 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     _audioService?.onDevicesChanged = null;
-    _searchCtrl.dispose();
     super.dispose();
   }
 
@@ -143,33 +132,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 builder: (context, audioService, _) {
                   final active = audioService.activeSessions;
 
-                  // Apply search filter (shown only when > 3 sessions)
-                  final filtered = _searchQuery.isEmpty
-                      ? active
-                      : active
-                          .where((s) {
-                            final name = context
-                                .read<CustomNameService>()
-                                .nameFor(s.processName, s.displayName)
-                                .toLowerCase();
-                            return name.contains(_searchQuery.toLowerCase());
-                          })
-                          .toList();
-
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // macOS < 14.2 limitation notice
                       const MacOsRoutingBanner(),
 
-                      // ── Search bar (only when > 3 sessions) ──
-                      if (active.length > 3) ...[
-                        _SearchBar(controller: _searchCtrl),
-                        const SizedBox(height: 8),
-                      ],
-
                       // ── Session cards ─────────────────────────
-                      ...filtered.map((session) {
+                      ...active.map((session) {
                         final device =
                             audioService.getDeviceForSession(session);
                         return Padding(
@@ -233,21 +203,6 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         );
                       }),
-
-                      // Empty state when search yields nothing
-                      if (filtered.isEmpty && _searchQuery.isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          child: Center(
-                            child: Text(
-                              context.l10n.noMatch,
-                              style: AppTheme.inter(
-                                fontSize: 12,
-                                color: AppColors.textTertiary,
-                              ),
-                            ),
-                          ),
-                        ),
 
                       // ── Duck rules ────────────────────────────
                       const SizedBox(height: 12),
@@ -355,17 +310,6 @@ class _HomeScreenState extends State<HomeScreen> {
             return Consumer<AudioService>(
               builder: (ctx2, audio, _) {
                 final active = audio.activeSessions;
-                final filtered = _searchQuery.isEmpty
-                    ? active
-                    : active
-                        .where((s) {
-                          final name = ctx2
-                              .read<CustomNameService>()
-                              .nameFor(s.processName, s.displayName)
-                              .toLowerCase();
-                          return name.contains(_searchQuery.toLowerCase());
-                        })
-                        .toList();
 
                 return macos.MacosScrollbar(
                   controller: scrollController,
@@ -377,15 +321,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       children: [
                         const MacOsRoutingBanner(),
 
-                        if (active.length > 3) ...[
-                          macos.MacosSearchField(
-                            placeholder: ctx2.l10n.search,
-                            onChanged: (q) => setState(() => _searchQuery = q),
-                          ),
-                          const SizedBox(height: 8),
-                        ],
-
-                        ...filtered.map((session) {
+                        ...active.map((session) {
                           final device = audio.getDeviceForSession(session);
                           return Padding(
                             padding: const EdgeInsets.only(bottom: 6),
@@ -399,20 +335,6 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                           );
                         }),
-
-                        if (filtered.isEmpty && _searchQuery.isNotEmpty)
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            child: Center(
-                              child: Text(
-                                ctx2.l10n.noMatch,
-                                style: AppTheme.inter(
-                                  fontSize: 12,
-                                  color: AppColors.textTertiary,
-                                ),
-                              ),
-                            ),
-                          ),
 
                         const SizedBox(height: 12),
                         const DuckRulesPanel(),
@@ -439,54 +361,4 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-// ─── Search bar widget ──────────────────────────────────────
-
-class _SearchBar extends StatelessWidget {
-  final TextEditingController controller;
-  const _SearchBar({required this.controller});
-
-  @override
-  Widget build(BuildContext context) {
-    context.watch<ThemeService>();
-    final l10n = context.l10n;
-    return Container(
-      height: 30,
-      decoration: BoxDecoration(
-        color: AppColors.bgSecondary,
-        borderRadius: BorderRadius.circular(AppColors.cardRadius),
-        border: Border.all(color: AppColors.border, width: 0.5),
-      ),
-      child: Row(
-        children: [
-          const SizedBox(width: 9),
-          Text('🔍',
-              style: AppTheme.inter(
-                  fontSize: 11, color: AppColors.textTertiary)),
-          const SizedBox(width: 6),
-          Expanded(
-            child: AdaptiveTextField(
-              controller: controller,
-              placeholder: l10n.search,
-              style: AppTheme.inter(fontSize: 12, color: AppColors.textPrimary),
-              placeholderStyle:
-                  AppTheme.inter(fontSize: 12, color: AppColors.textTertiary),
-              padding: const EdgeInsets.symmetric(vertical: 6),
-              decoration: const BoxDecoration(),
-            ),
-          ),
-          if (controller.text.isNotEmpty)
-            GestureDetector(
-              onTap: controller.clear,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                child: Text('✕',
-                    style: AppTheme.inter(
-                        fontSize: 11, color: AppColors.textTertiary)),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
 
