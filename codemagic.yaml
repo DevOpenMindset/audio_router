@@ -40,7 +40,7 @@ workflows:
       - name: Upload DMG to GitHub Release
         script: |
           VERSION=$(echo $CM_TAG | sed 's/^v//')
-          export GH_TOKEN=$GITHUB_TOKEN
+          export GH_TOKEN=$MAC_GH_TOKEN
           if ! gh release upload "$CM_TAG" "AudioRouter-${VERSION}.dmg" --repo DevOpenMindset/audio_router --clobber; then
             echo "Release not found, creating it since Codemagic finished first..."
             gh release create "$CM_TAG" "AudioRouter-${VERSION}.dmg" --repo DevOpenMindset/audio_router -t "Release $CM_TAG" --generate-notes
