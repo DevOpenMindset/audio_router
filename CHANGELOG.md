@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.2.17] - 2026-03-28
+### Fixed
+- App version now correctly reflects the release tag — update dialog no longer appears after installing the latest version
+- App relaunches reliably after silent auto-update on Windows
+- Search bar removed from session list
+
 ## [1.2.14] - unreleased
 
 ## [1.2.13] - 2026-03-28

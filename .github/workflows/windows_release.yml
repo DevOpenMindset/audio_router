@@ -16,6 +16,13 @@ jobs:
         with:
           channel: stable
 
+      - name: Update pubspec version from tag
+        shell: bash
+        run: |
+          VERSION="${{ github.ref_name }}"
+          VERSION="${VERSION#v}"
+          sed -i "s/^version: .*/version: ${VERSION}+1/" pubspec.yaml
+
       - name: Install dependencies
         run: flutter pub get
 

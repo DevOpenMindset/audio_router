@@ -16,6 +16,11 @@ workflows:
         - pattern: 'v*'
 
     scripts:
+      - name: Update pubspec version from tag
+        script: |
+          VERSION=$(echo $CM_TAG | sed 's/^v//')
+          sed -i "s/^version: .*/version: ${VERSION}+1/" pubspec.yaml
+
       - name: Install dependencies
         script: flutter pub get
 

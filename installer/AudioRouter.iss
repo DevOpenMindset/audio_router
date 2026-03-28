@@ -76,8 +76,10 @@ begin
   end;
   // In silent mode the [Run] postinstall entry is skipped — relaunch manually
   if CurStep = ssDone then begin
-    if WizardSilent then
-      Exec(ExpandConstant('{app}\{#MyAppExeName}'), '', '', SW_SHOW, ewNoWait, ResultCode);
+    if WizardSilent then begin
+      Sleep(800);
+      ShellExec('', ExpandConstant('{app}\{#MyAppExeName}'), '', '', SW_SHOWNORMAL, ewNoWait, ResultCode);
+    end;
   end;
 end;
 
