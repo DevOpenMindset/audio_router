@@ -30,11 +30,6 @@ workflows:
           VERSION=$(echo $CM_TAG | sed 's/^v//')
           create-dmg \
             --volname "AudioRouter" \
-            --window-pos 200 120 \
-            --window-size 600 400 \
-            --icon-size 100 \
-            --icon "audio_router.app" 150 185 \
-            --app-drop-link 450 185 \
             --no-internet-enable \
             "AudioRouter-${VERSION}.dmg" \
             "build/macos/Build/Products/Release/audio_router.app"
