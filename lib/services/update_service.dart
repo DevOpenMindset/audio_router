@@ -147,14 +147,33 @@ class UpdateService {
         // Give file system a moment to sync
         await Future.delayed(const Duration(milliseconds: 500));
 
-        // Launch installer
+        // Launch installer + relay relaunch script
         if (Platform.isWindows) {
-          // Pass /SILENT so the user just sees it install, but it will need admin rights if installed system-wide.
-          Process.start(file.path, ['/SILENT'], mode: ProcessStartMode.detached);
+          // Write a bat relay that waits for the installer to finish, then relaunches the app.
+          // This is more reliable than relying on Inno Setup's ShellExec from an elevated context.
+          final appPath = Platform.resolvedExecutable;
+          final installerName = file.uri.pathSegments.last;
+          final batPath = '${Directory.systemTemp.path}\\ar_relaunch.bat';
+          await File(batPath).writeAsString(
+            '@echo off\r\n'
+            ':loop\r\n'
+            'tasklist /FI "IMAGENAME eq $installerName" 2>NUL | find /I "AudioRouter" >NUL\r\n'
+            'if %ERRORLEVEL% EQU 0 (\r\n'
+            '  timeout /t 1 /nobreak >NUL\r\n'
+            '  goto loop\r\n'
+            ')\r\n'
+            'timeout /t 3 /nobreak >NUL\r\n'
+            'start "" "$appPath"\r\n'
+            '(goto) 2>NUL & del "%~f0"\r\n',
+          );
+          // Start the relay bat first (it will wait on the installer)
+          Process.start('cmd.exe', ['/c', batPath], mode: ProcessStartMode.detached);
+          // Then start the installer
+          Process.start(file.path, ['/VERYSILENT', '/NORESTART'], mode: ProcessStartMode.detached);
         } else if (Platform.isMacOS) {
           Process.start('open', [file.path], mode: ProcessStartMode.detached);
         }
-        
+
         // Exit the current app instance so Windows can replace the exe
         exit(0);
       } else {

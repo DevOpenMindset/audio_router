@@ -1,5 +1,5 @@
 #define MyAppName "AudioRouter"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "1.2.23"
 #define MyAppPublisher "AudioRouter"
 #define MyAppURL "https://audiorouter.app"
 #define MyAppExeName "audio_router.exe"
@@ -74,11 +74,12 @@ begin
     // Give Windows time to fully release file handles
     Sleep(800);
   end;
-  // In silent mode the [Run] postinstall entry is skipped — relaunch manually
+  // In silent/very-silent mode the [Run] postinstall entry is skipped.
+  // Use Exec (direct process launch, not Shell) — more reliable from elevated context.
   if CurStep = ssDone then begin
     if WizardSilent then begin
-      Sleep(800);
-      ShellExec('', ExpandConstant('{app}\{#MyAppExeName}'), '', '', SW_SHOWNORMAL, ewNoWait, ResultCode);
+      Sleep(1200);
+      Exec(ExpandConstant('{app}\{#MyAppExeName}'), '', ExpandConstant('{app}'), SW_SHOWNORMAL, ewNoWait, ResultCode);
     end;
   end;
 end;
