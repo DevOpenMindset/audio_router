@@ -52,6 +52,13 @@ class _WindowsUpdateDialog extends StatefulWidget {
 class _WindowsUpdateDialogState extends State<_WindowsUpdateDialog> {
   bool _isDownloading = false;
   double _progress = 0.0;
+  final _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -112,7 +119,9 @@ class _WindowsUpdateDialogState extends State<_WindowsUpdateDialog> {
               ConstrainedBox(
                 constraints: const BoxConstraints(maxHeight: 200),
                 child: Scrollbar(
+                  controller: _scrollController,
                   child: SingleChildScrollView(
+                    controller: _scrollController,
                     padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
                     child: MarkdownBody(
                       data: widget.updateInfo.notes,
@@ -308,6 +317,13 @@ class _MacosUpdateDialog extends StatefulWidget {
 class _MacosUpdateDialogState extends State<_MacosUpdateDialog> {
   bool _isDownloading = false;
   double _progress = 0.0;
+  final _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -360,7 +376,9 @@ class _MacosUpdateDialogState extends State<_MacosUpdateDialog> {
               ConstrainedBox(
                 constraints: const BoxConstraints(maxHeight: 160),
                 child: Scrollbar(
+                  controller: _scrollController,
                   child: SingleChildScrollView(
+                    controller: _scrollController,
                     child: MarkdownBody(
                       data: widget.updateInfo.notes,
                       styleSheet: MarkdownStyleSheet(
