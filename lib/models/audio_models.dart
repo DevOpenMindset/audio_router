@@ -105,6 +105,62 @@ class AudioSession {
   }
 }
 
+/// App rule: when a specific app opens, automatically route it to a device.
+/// Example: Discord opens → route to headset.
+class AppRule {
+  final String id;
+  final String triggerProcessName; // e.g. "discord"
+  final String triggerDisplayName; // e.g. "Discord" (for UI)
+  final String deviceId;           // target device ID
+  final String deviceName;         // target device short name (for UI)
+  final bool enabled;
+
+  const AppRule({
+    required this.id,
+    required this.triggerProcessName,
+    required this.triggerDisplayName,
+    required this.deviceId,
+    required this.deviceName,
+    this.enabled = true,
+  });
+
+  AppRule copyWith({
+    String? id,
+    String? triggerProcessName,
+    String? triggerDisplayName,
+    String? deviceId,
+    String? deviceName,
+    bool? enabled,
+  }) {
+    return AppRule(
+      id: id ?? this.id,
+      triggerProcessName: triggerProcessName ?? this.triggerProcessName,
+      triggerDisplayName: triggerDisplayName ?? this.triggerDisplayName,
+      deviceId: deviceId ?? this.deviceId,
+      deviceName: deviceName ?? this.deviceName,
+      enabled: enabled ?? this.enabled,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'triggerProcessName': triggerProcessName,
+    'triggerDisplayName': triggerDisplayName,
+    'deviceId': deviceId,
+    'deviceName': deviceName,
+    'enabled': enabled,
+  };
+
+  factory AppRule.fromJson(Map<String, dynamic> json) => AppRule(
+    id: json['id'] as String,
+    triggerProcessName: json['triggerProcessName'] as String,
+    triggerDisplayName: json['triggerDisplayName'] as String? ?? json['triggerProcessName'] as String,
+    deviceId: json['deviceId'] as String,
+    deviceName: json['deviceName'] as String? ?? '',
+    enabled: json['enabled'] as bool? ?? true,
+  );
+}
+
 /// Auto-duck rule: when triggerApp is producing audio, lower targetApp's volume.
 /// Example: when Discord is active → lower Spotify to 30%.
 class DuckRule {

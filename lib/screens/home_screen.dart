@@ -13,6 +13,7 @@ import '../widgets/title_bar.dart';
 import '../widgets/session_card.dart';
 import '../widgets/device_footer.dart';
 import '../widgets/duck_rules_panel.dart';
+import '../widgets/app_rules_panel.dart';
 import '../widgets/toast_notification.dart';
 import '../widgets/macos_routing_banner.dart';
 import '../widgets/donation_dialog.dart';
@@ -221,6 +222,10 @@ class _HomeScreenState extends State<HomeScreen> with WindowListener {
                           ),
                         );
                       }),
+
+                      // ── App rules ─────────────────────────────
+                      const SizedBox(height: 12),
+                      const AppRulesPanel(),
 
                       // ── Duck rules ────────────────────────────
                       const SizedBox(height: 12),

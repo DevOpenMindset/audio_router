@@ -56,12 +56,16 @@ class AudioService extends ChangeNotifier {
   final Map<String, Timer> _activeFades = {};       // processName -> fade timer
   final Set<String> _fadingPids = {};               // pids mid-fade (block _refreshSessions)
 
+  // App rules: auto-route when a specific app opens
+  List<AppRule> _appRules = [];
+
   List<AudioDevice> get devices => List.unmodifiable(_devices);
   List<AudioSession> get sessions => List.unmodifiable(_sessions);
   // All non-expired sessions (expired are already filtered in native code).
   // Includes both Active (playing) and Inactive (open but silent) sessions.
   List<AudioSession> get activeSessions => List.unmodifiable(_sessions);
   List<DuckRule> get duckRules => List.unmodifiable(_duckRules);
+  List<AppRule>  get appRules  => List.unmodifiable(_appRules);
 
   AudioService() {
     _init();
@@ -69,6 +73,7 @@ class AudioService extends ChangeNotifier {
 
   Future<void> _init() async {
     await _loadDuckRules();
+    await _loadAppRules();
     await _loadRouteMemory();
     await _loadMirrorMemory();
     if (!kIsWeb && (Platform.isWindows || Platform.isMacOS)) {
@@ -202,11 +207,27 @@ class AudioService extends ChangeNotifier {
         final s = rebuilt[i];
         final isNew = !existingPids.contains(s.processId);
         if (isNew && s.assignedDeviceId == null) {
-          final savedDevice = _routeMemory[s.processName.toLowerCase()];
-          if (savedDevice != null && savedDevice.isNotEmpty) {
-            _persistedRoutes[s.processId] = savedDevice;
+          // 1. Check app rules first (higher priority than route memory)
+          final nameKey = s.processName.toLowerCase();
+          final matchingRule = _appRules.where((r) =>
+            r.enabled && r.triggerProcessName.toLowerCase() == nameKey
+          ).firstOrNull;
+
+          if (matchingRule != null) {
+            _persistedRoutes[s.processId] = matchingRule.deviceId;
+            _routeMemory[nameKey] = matchingRule.deviceId;
             if (_useNative && _native != null) {
-              try { _native!.routeAppToDevice(s.processId, savedDevice); } catch (_) {}
+              try { _native!.routeAppToDevice(s.processId, matchingRule.deviceId); } catch (_) {}
+            }
+            rebuilt[i] = s.copyWith(assignedDeviceId: matchingRule.deviceId);
+          } else {
+            // 2. Fall back to route memory
+            final savedDevice = _routeMemory[nameKey];
+            if (savedDevice != null && savedDevice.isNotEmpty) {
+              _persistedRoutes[s.processId] = savedDevice;
+              if (_useNative && _native != null) {
+                try { _native!.routeAppToDevice(s.processId, savedDevice); } catch (_) {}
+              }
             }
           }
         }
@@ -824,6 +845,49 @@ class AudioService extends ChangeNotifier {
 
   bool isSessionDucked(String processName) =>
       _currentlyDucked.contains(processName.toLowerCase());
+
+  // ─── APP RULES ────────────────────────────────────────────
+
+  void addAppRule(AppRule rule) {
+    _appRules.add(rule);
+    _saveAppRules();
+    notifyListeners();
+  }
+
+  void updateAppRule(AppRule updated) {
+    _appRules = _appRules.map((r) => r.id == updated.id ? updated : r).toList();
+    _saveAppRules();
+    notifyListeners();
+  }
+
+  void removeAppRule(String ruleId) {
+    _appRules.removeWhere((r) => r.id == ruleId);
+    _saveAppRules();
+    notifyListeners();
+  }
+
+  Future<void> _loadAppRules() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final json = prefs.getString('app_rules');
+      if (json != null) {
+        final list = jsonDecode(json) as List;
+        _appRules = list.map((e) => AppRule.fromJson(e as Map<String, dynamic>)).toList();
+      }
+    } catch (e) {
+      debugPrint('Failed to load app rules: $e');
+    }
+  }
+
+  Future<void> _saveAppRules() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final json = jsonEncode(_appRules.map((r) => r.toJson()).toList());
+      await prefs.setString('app_rules', json);
+    } catch (e) {
+      debugPrint('Failed to save app rules: $e');
+    }
+  }
 
   // ─── AUTO-START ───────────────────────────────────────────
 

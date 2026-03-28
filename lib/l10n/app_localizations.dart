@@ -43,6 +43,18 @@ class AppLocalizations {
   String get whenAppActive => _p(en: 'When this app is active:', fr: 'Quand cette app est active :', es: 'Cuando esta app está activa:');
   String get lowerAppTo    => _p(en: 'Lower this app to:',       fr: 'Baisser cette app à :',         es: 'Bajar esta app a:');
 
+  // ── App rules ─────────────────────────────────────────────
+  String get appRules        => _p(en: 'App Rules',       fr: 'Règles d\'app',   es: 'Reglas de app');
+  String get noAppRules      => _p(en: 'No app rules yet', fr: 'Aucune règle',   es: 'Sin reglas');
+  String get noAppRulesHint  => _p(
+    en: 'e.g. Discord opens → route to headset',
+    fr: 'ex. Discord s\'ouvre → router vers casque',
+    es: 'ej. Discord abre → enrutar a auriculares',
+  );
+  String get newAppRule      => _p(en: 'New App Rule',    fr: 'Nouvelle règle', es: 'Nueva regla');
+  String get whenAppOpens    => _p(en: 'When this app opens:', fr: 'Quand cette app s\'ouvre :', es: 'Cuando esta app abre:');
+  String get routeToDevice   => _p(en: 'Route to:',       fr: 'Router vers :',  es: 'Enrutar a:');
+
   // ── Session ───────────────────────────────────────────────
   String get noAudio       => _p(en: 'No audio',      fr: 'Pas de son',    es: 'Sin audio');
   String get mute          => _p(en: 'Mute',          fr: 'Muet',          es: 'Silenciar');
