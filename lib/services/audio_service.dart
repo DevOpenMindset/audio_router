@@ -148,6 +148,9 @@ class AudioService extends ChangeNotifier {
     'csrss', 'winlogon', 'services', 'lsass', 'smss',
     'wininit', 'fontdrvhost', 'sihost', 'ctfmon', 'rundll32',
     'taskhostw', 'backgroundtaskhost', 'searchhost', 'searchindexer',
+    // Windows Shell UI processes — system sounds / shell animations
+    'shellexperiencehost', 'startmenuexperiencehost', 'lockapp',
+    'runtimebroker', 'applicationframehost', 'wwahost',
     // Hide ourselves — mirror render threads register audio_router as a
     // WASAPI session on the target device; we must not show it in the UI.
     'audio_router',
