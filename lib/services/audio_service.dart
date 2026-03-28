@@ -194,7 +194,10 @@ class AudioService extends ChangeNotifier {
       }
 
       // Auto-apply route memory for newly appeared sessions
-      final existingPids = _sessions.map((s) => s.processId).toSet();
+      // Include extra PIDs so grouped-session extras aren't re-routed every refresh
+      final existingPids = _sessions
+          .expand((s) => s.allProcessIds)
+          .toSet();
       for (var i = 0; i < rebuilt.length; i++) {
         final s = rebuilt[i];
         final isNew = !existingPids.contains(s.processId);
@@ -225,7 +228,33 @@ class AudioService extends ChangeNotifier {
         }
       }
 
-      _sessions = rebuilt;
+      // Group sessions by process name — one card per app (handles multi-process
+      // browsers, Electron apps, etc. that spawn multiple audio sessions).
+      final byName = <String, List<AudioSession>>{};
+      for (final s in rebuilt) {
+        byName.putIfAbsent(s.processName.toLowerCase(), () => []).add(s);
+      }
+      _sessions = byName.values.map((group) {
+        if (group.length == 1) return group.first;
+        // Pick primary: prefer active, then routed, else first
+        group.sort((a, b) {
+          if (a.isActive != b.isActive) return a.isActive ? -1 : 1;
+          final aRouted = a.assignedDeviceId != null;
+          final bRouted = b.assignedDeviceId != null;
+          if (aRouted != bRouted) return aRouted ? -1 : 1;
+          return 0;
+        });
+        final primary = group.first;
+        final extra = group.skip(1).map((s) => s.processId).toList();
+        final maxPeak = group.map((s) => s.peakLevel).reduce(max);
+        final anyActive = group.any((s) => s.isActive);
+        return primary.copyWith(
+          extraProcessIds: extra,
+          peakLevel: maxPeak,
+          isActive: anyActive,
+        );
+      }).toList();
+
       notifyListeners();
     } catch (e) {
       debugPrint('Session enumeration error: $e');
@@ -240,7 +269,10 @@ class AudioService extends ChangeNotifier {
 
       bool changed = false;
       _sessions = _sessions.map((session) {
-        final rawLevel = levels[session.processId] ?? 0.0;
+        // Take max peak across all PIDs (multi-process apps like browsers)
+        final rawLevel = session.allProcessIds
+            .map((pid) => levels[pid] ?? 0.0)
+            .reduce(max);
 
         double newLevel;
         if (rawLevel >= session.peakLevel) {
@@ -369,41 +401,33 @@ class AudioService extends ChangeNotifier {
 
   void setSessionVolume(String processId, double volume) {
     final clamped = volume.clamp(0.0, 1.0);
-    _persistedVolumes[processId] = clamped;
-    if (_useNative && _native != null) {
-      try {
-        _native!.setVolume(processId, clamped);
-      } catch (e) {
-        debugPrint('Volume set error: $e');
-      }
-    }
     _sessions = _sessions.map((s) {
-      if (s.processId == processId) {
-        return s.copyWith(volume: clamped);
+      if (s.processId != processId) return s;
+      for (final pid in s.allProcessIds) {
+        _persistedVolumes[pid] = clamped;
+        if (_useNative && _native != null) {
+          try { _native!.setVolume(pid, clamped); } catch (e) {
+            debugPrint('Volume set error: $e');
+          }
+        }
       }
-      return s;
+      return s.copyWith(volume: clamped);
     }).toList();
     notifyListeners();
   }
 
   void toggleMute(String processId) {
-    final session = _sessions.firstWhere(
-      (s) => s.processId == processId,
-      orElse: () => throw StateError('Session not found'),
-    );
-    final newMuted = !session.isMuted;
-    if (_useNative && _native != null) {
-      try {
-        _native!.setMute(processId, newMuted);
-      } catch (e) {
-        debugPrint('Mute toggle error: $e');
-      }
-    }
     _sessions = _sessions.map((s) {
-      if (s.processId == processId) {
-        return s.copyWith(isMuted: newMuted);
+      if (s.processId != processId) return s;
+      final newMuted = !s.isMuted;
+      for (final pid in s.allProcessIds) {
+        if (_useNative && _native != null) {
+          try { _native!.setMute(pid, newMuted); } catch (e) {
+            debugPrint('Mute toggle error: $e');
+          }
+        }
       }
-      return s;
+      return s.copyWith(isMuted: newMuted);
     }).toList();
     notifyListeners();
   }
@@ -411,39 +435,36 @@ class AudioService extends ChangeNotifier {
   void routeSession(String processId, String deviceId) {
     debugPrint('routeSession called: pid=$processId -> device=$deviceId (native=$_useNative)');
 
-    // Update persistent map so assignedDeviceId survives session reconnections
-    if (deviceId.isEmpty) {
-      _persistedRoutes.remove(processId);
-    } else {
-      _persistedRoutes[processId] = deviceId;
-    }
+    _sessions = _sessions.map((s) {
+      if (s.processId != processId) return s;
 
-    // Persist by process name so the route is restored when the app restarts
-    final session = _sessions.where((s) => s.processId == processId).firstOrNull;
-    if (session != null) {
-      final nameKey = session.processName.toLowerCase();
+      // Apply to all PIDs in this grouped session (multi-process apps)
+      for (final pid in s.allProcessIds) {
+        if (deviceId.isEmpty) {
+          _persistedRoutes.remove(pid);
+        } else {
+          _persistedRoutes[pid] = deviceId;
+        }
+        if (_useNative && _native != null) {
+          try {
+            final hr = _native!.routeAppToDevice(pid, deviceId);
+            debugPrint('routeAppToDevice: pid=$pid -> 0x${hr.toUnsigned(32).toRadixString(16).toUpperCase()}');
+          } catch (e) {
+            debugPrint('Warning: Native routing failed for $pid -> $deviceId: $e');
+          }
+        }
+      }
+
+      // Persist by process name so the route is restored when the app restarts
+      final nameKey = s.processName.toLowerCase();
       if (deviceId.isEmpty) {
         _routeMemory.remove(nameKey);
       } else {
         _routeMemory[nameKey] = deviceId;
       }
       _saveRouteMemory();
-    }
 
-    if (_useNative && _native != null) {
-      try {
-        final hr = _native!.routeAppToDevice(processId, deviceId);
-        debugPrint('routeAppToDevice returned: 0x${hr.toUnsigned(32).toRadixString(16).toUpperCase()}');
-      } catch (e) {
-        debugPrint('Warning: Native routing failed for $processId -> $deviceId: $e');
-      }
-    }
-
-    _sessions = _sessions.map((s) {
-      if (s.processId == processId) {
-        return s.copyWith(assignedDeviceId: deviceId.isEmpty ? null : deviceId);
-      }
-      return s;
+      return s.copyWith(assignedDeviceId: deviceId.isEmpty ? null : deviceId);
     }).toList();
     notifyListeners();
   }

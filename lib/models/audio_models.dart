@@ -56,6 +56,8 @@ class AudioSession {
   final String? assignedDeviceId;
   // Extra output device IDs being mirrored via WASAPI loopback
   final List<String> mirrorDeviceIds;
+  // Additional PIDs for multi-process apps (e.g. browser tabs)
+  final List<String> extraProcessIds;
 
   const AudioSession({
     required this.processId,
@@ -68,7 +70,11 @@ class AudioSession {
     this.isActive = true,
     this.assignedDeviceId,
     this.mirrorDeviceIds = const [],
+    this.extraProcessIds = const [],
   });
+
+  /// All PIDs belonging to this session (primary + grouped extras)
+  List<String> get allProcessIds => [processId, ...extraProcessIds];
 
   AudioSession copyWith({
     String? processId,
@@ -81,6 +87,7 @@ class AudioSession {
     bool? isActive,
     String? assignedDeviceId,
     List<String>? mirrorDeviceIds,
+    List<String>? extraProcessIds,
   }) {
     return AudioSession(
       processId: processId ?? this.processId,
@@ -93,6 +100,7 @@ class AudioSession {
       isActive: isActive ?? this.isActive,
       assignedDeviceId: assignedDeviceId ?? this.assignedDeviceId,
       mirrorDeviceIds: mirrorDeviceIds ?? this.mirrorDeviceIds,
+      extraProcessIds: extraProcessIds ?? this.extraProcessIds,
     );
   }
 }
