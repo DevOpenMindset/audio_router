@@ -34,6 +34,19 @@ jobs:
       - name: Build Installer
         run: iscc installer/AudioRouter.iss
 
+      - name: Extract changelog notes
+        shell: bash
+        run: |
+          TAG="${{ github.ref_name }}"
+          VERSION="${TAG#v}"
+          # Extract the section for this version from CHANGELOG.md
+          NOTES=$(awk "/^## \[${VERSION}\]/{found=1; next} found && /^## \[/{exit} found{print}" CHANGELOG.md)
+          if [ -z "$NOTES" ]; then
+            NOTES="Release ${TAG}"
+          fi
+          # Write to file to preserve newlines
+          echo "$NOTES" > release_notes.txt
+
       - name: Upload installer to release
         shell: bash
         env:
@@ -42,9 +55,14 @@ jobs:
           TAG="${{ github.ref_name }}"
           VERSION="${TAG#v}"
           EXE="installer/output/AudioRouter-Setup-${VERSION}.exe"
+          NOTES=$(cat release_notes.txt)
           if ! gh release upload "$TAG" "$EXE" --repo DevOpenMindset/audio_router_releases --clobber 2>/dev/null; then
             gh release create "$TAG" "$EXE" \
               --repo DevOpenMindset/audio_router_releases \
               --title "Release $TAG" \
-              --generate-notes
+              --notes "$NOTES"
+          else
+            gh release edit "$TAG" \
+              --repo DevOpenMindset/audio_router_releases \
+              --notes "$NOTES" 2>/dev/null || true
           fi

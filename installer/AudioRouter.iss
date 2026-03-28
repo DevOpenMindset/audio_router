@@ -67,12 +67,17 @@ Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#MyAppName}}
 Filename: "{app}\{#MyAppExeName}"; Parameters: "--uninstall"; Flags: runhidden
 
 [Code]
-// Kill running instance before install/upgrade
+// Kill running instance before install/upgrade, and relaunch after (silent mode only)
 procedure CurStepChanged(CurStep: TSetupStep);
 var
   ResultCode: Integer;
 begin
   if CurStep = ssInstall then begin
     Exec('taskkill.exe', '/F /IM {#MyAppExeName}', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  end;
+  // In silent mode the [Run] postinstall entry is skipped — relaunch manually
+  if CurStep = ssDone then begin
+    if WizardSilent then
+      Exec(ExpandConstant('{app}\{#MyAppExeName}'), '', '', SW_SHOW, ewNoWait, ResultCode);
   end;
 end;

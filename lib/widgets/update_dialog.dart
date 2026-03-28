@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/cupertino.dart' show CupertinoIcons;
 import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:macos_ui/macos_ui.dart' as macos;
 import 'package:provider/provider.dart';
 import '../platform.dart';
@@ -106,18 +107,40 @@ class _WindowsUpdateDialogState extends State<_WindowsUpdateDialog> {
             ),
             Container(height: 1, color: AppColors.border),
 
-            // Body
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
-              child: Text(
-                l10n.updateBody,
-                style: AppTheme.inter(
-                  fontSize: 12,
-                  color: AppColors.textSecondary,
-                  height: 1.5,
+            // Body — show release notes if available, else generic text
+            if (widget.updateInfo.notes.isNotEmpty) ...[
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 200),
+                child: Scrollbar(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
+                    child: MarkdownBody(
+                      data: widget.updateInfo.notes,
+                      styleSheet: MarkdownStyleSheet(
+                        p: AppTheme.inter(fontSize: 12, color: AppColors.textSecondary, height: 1.5),
+                        h2: AppTheme.inter(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                        h3: AppTheme.inter(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                        listBullet: AppTheme.inter(fontSize: 12, color: AppColors.textSecondary),
+                        code: AppTheme.inter(fontSize: 11, color: AppColors.accent),
+                      ),
+                    ),
+                  ),
                 ),
               ),
-            ),
+              const SizedBox(height: 8),
+            ] else ...[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+                child: Text(
+                  l10n.updateBody,
+                  style: AppTheme.inter(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                    height: 1.5,
+                  ),
+                ),
+              ),
+            ],
 
             // Action Area
             ..._buildActionArea(context, l10n, updateService),
@@ -333,15 +356,34 @@ class _MacosUpdateDialogState extends State<_MacosUpdateDialog> {
             const SizedBox(height: 12),
             ProgressBar(value: _progress >= 0 ? _progress * 100 : null),
           ] else ...[
-            Text(
-              l10n.updateBody,
-              textAlign: TextAlign.center,
-              style: AppTheme.inter(
-                fontSize: 12,
-                color: AppColors.textSecondary,
-                height: 1.5,
+            if (widget.updateInfo.notes.isNotEmpty) ...[
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 160),
+                child: Scrollbar(
+                  child: SingleChildScrollView(
+                    child: MarkdownBody(
+                      data: widget.updateInfo.notes,
+                      styleSheet: MarkdownStyleSheet(
+                        p: AppTheme.inter(fontSize: 12, color: AppColors.textSecondary, height: 1.5),
+                        h2: AppTheme.inter(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                        h3: AppTheme.inter(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                        listBullet: AppTheme.inter(fontSize: 12, color: AppColors.textSecondary),
+                      ),
+                    ),
+                  ),
+                ),
               ),
-            ),
+            ] else ...[
+              Text(
+                l10n.updateBody,
+                textAlign: TextAlign.center,
+                style: AppTheme.inter(
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
+                  height: 1.5,
+                ),
+              ),
+            ],
             const SizedBox(height: 16),
             GestureDetector(
               onTap: () async {
