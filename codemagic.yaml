@@ -6,8 +6,8 @@ workflows:
 
     environment:
       flutter: stable
-      vars:
-        GITHUB_TOKEN: $GITHUB_TOKEN
+      groups:
+        - github
 
     triggering:
       events:
