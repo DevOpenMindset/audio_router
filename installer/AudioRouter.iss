@@ -54,7 +54,7 @@ Source: "{#BuildDir}\data\*"; DestDir: "{app}\data"; Flags: ignoreversion recurs
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
-Name: "{commondesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
+Name: "{userdesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Registry]
 ; Autostart option (only if user chose it during install)
@@ -62,9 +62,6 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: 
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#MyAppName}}"; Flags: nowait postinstall skipifsilent
-
-[UninstallRun]
-Filename: "{app}\{#MyAppExeName}"; Parameters: "--uninstall"; Flags: runhidden
 
 [Code]
 // Kill running instance before install/upgrade, and relaunch after (silent mode only)
@@ -74,10 +71,23 @@ var
 begin
   if CurStep = ssInstall then begin
     Exec('taskkill.exe', '/F /IM {#MyAppExeName}', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+    // Give Windows time to fully release file handles
+    Sleep(800);
   end;
   // In silent mode the [Run] postinstall entry is skipped — relaunch manually
   if CurStep = ssDone then begin
     if WizardSilent then
       Exec(ExpandConstant('{app}\{#MyAppExeName}'), '', '', SW_SHOW, ewNoWait, ResultCode);
+  end;
+end;
+
+// Kill running instance before uninstall so files can be deleted
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+var
+  ResultCode: Integer;
+begin
+  if CurUninstallStep = usUninstall then begin
+    Exec('taskkill.exe', '/F /IM {#MyAppExeName}', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+    Sleep(800);
   end;
 end;
