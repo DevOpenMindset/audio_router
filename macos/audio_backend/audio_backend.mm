@@ -57,7 +57,8 @@ extern "C" OSStatus AudioHardwareCreateProcessTap(CATapDescription *inDesc, Audi
 extern "C" OSStatus AudioHardwareDestroyProcessTap(AudioObjectID inTapID);
 #else
 #include <CoreAudio/CATapDescription.h>
-// AudioHardwareDestroyProcessTap may be absent in newer SDK CATapDescription.h headers
+// These symbols may be absent from CATapDescription.h in newer SDKs — declare explicitly.
+extern "C" OSStatus AudioHardwareCreateProcessTap(CATapDescription *inDesc, AudioObjectID *outTapID);
 extern "C" OSStatus AudioHardwareDestroyProcessTap(AudioObjectID inTapID);
 #endif
 
@@ -157,6 +158,7 @@ static AudioObjectID GetDefaultOutputDevice() {
 }
 
 static float GetDevicePeakLevel(AudioObjectID devId) {
+#if __MAC_OS_X_VERSION_MAX_ALLOWED < 260000
     for (UInt32 ch = 0; ch <= 2; ch++) {
         AudioObjectPropertyAddress addr = {
             kAudioDevicePropertyDevicePeakVolume,
@@ -167,6 +169,9 @@ static float GetDevicePeakLevel(AudioObjectID devId) {
         if (AudioObjectGetPropertyData(devId, &addr, 0, nullptr, &size, &peak) == kAudioHardwareNoError)
             return peak;
     }
+#else
+    (void)devId;
+#endif
     return 0.0f;
 }
 
@@ -432,7 +437,9 @@ static int32_t StartTapRoute(pid_t pid, AudioObjectID processObj, AudioObjectID 
         // Create the tap — captures this process and silences its original output.
         CATapDescription *desc = [[CATapDescription alloc]
             initStereoMixdownOfProcesses:@[@(processObj)]];
+#if __MAC_OS_X_VERSION_MAX_ALLOWED < 260000
         desc.mutedProcesses = @[@(processObj)];
+#endif
         desc.name = [NSString stringWithFormat:@"AudioRouter-%d", (int)pid];
 
         AudioObjectID tapDev = 0;
