@@ -17,6 +17,10 @@ class AppLocalizations {
   // ── General ──────────────────────────────────────────────
   String get appName       => _p(en: 'AudioRouter',   fr: 'AudioRouter',   es: 'AudioRouter');
   String get settings      => _p(en: 'Settings',      fr: 'Paramètres',    es: 'Ajustes');
+  // Tab bar
+  String get appsTab       => _p(en: 'Apps',          fr: 'Apps',          es: 'Apps');
+  String get rulesTab      => _p(en: 'Rules',         fr: 'Règles',        es: 'Reglas');
+  String get settingsTab   => _p(en: 'Settings',      fr: 'Réglages',      es: 'Ajustes');
   String get done          => _p(en: 'Done',           fr: 'Terminé',       es: 'Hecho');
   String get cancel        => _p(en: 'Cancel',         fr: 'Annuler',       es: 'Cancelar');
   String get add           => _p(en: 'Add',            fr: 'Ajouter',       es: 'Añadir');

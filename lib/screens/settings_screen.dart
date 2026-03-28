@@ -12,13 +12,27 @@ import '../widgets/donation_dialog.dart';
 import '../l10n/app_localizations.dart';
 
 class SettingsScreen extends StatelessWidget {
-  const SettingsScreen({super.key});
+  /// If true, renders as a plain scrollable content (no dialog chrome).
+  final bool inline;
+  const SettingsScreen({super.key, this.inline = false});
 
   @override
   Widget build(BuildContext context) {
     context.watch<ThemeService>();
-    final l10n = context.l10n;
     if (isMacOS) return _buildMacOS(context);
+
+    final content = _buildWindowsContent(context);
+
+    // Inline mode: no dialog wrapper, just content
+    if (inline) {
+      return SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: content,
+      );
+    }
+
+    // Dialog mode: wrapped in a card
+    final l10n = context.l10n;
     return Container(
       width: 320,
       decoration: BoxDecoration(
@@ -31,121 +45,100 @@ class SettingsScreen extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
           Padding(
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
-                Text(
-                  l10n.settings,
-                  style: AppTheme.inter(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
+                Text(l10n.settings,
+                    style: AppTheme.inter(
+                        fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
                 const Spacer(),
                 GestureDetector(
                   onTap: () => Navigator.pop(context),
                   child: Container(
                     padding: const EdgeInsets.all(4),
-                    child: Icon(
-                      adaptiveCloseIcon(),
-                      size: 12,
-                      color: AppColors.textSecondary,
-                    ),
+                    child: Icon(adaptiveCloseIcon(), size: 12, color: AppColors.textSecondary),
                   ),
                 ),
               ],
             ),
           ),
-
           Container(height: 1, color: AppColors.border),
-
-          // Settings items
-          Consumer<AudioService>(
-            builder: (context, audioService, _) {
-              final l = context.l10n;
-              return _SettingToggle(
-                label: l.launchStartup,
-                description: l.launchStartupDescWin,
-                value: audioService.autostart,
-                onChanged: (val) => audioService.setAutostart(val),
-              );
-            },
-          ),
-
-          // Taskbar visibility
-          Consumer<ThemeService>(
-            builder: (context, themeService, _) {
-              final l = context.l10n;
-              return _SettingToggle(
-                label: l.showInTaskbar,
-                description: l.showInTaskbarDesc,
-                value: themeService.showInTaskbar,
-                onChanged: (val) => themeService.setShowInTaskbar(val),
-              );
-            },
-          ),
-
-          // Dark mode toggle
-          Consumer<ThemeService>(
-            builder: (context, themeService, _) {
-              final l = context.l10n;
-              return _SettingToggle(
-                label: l.darkMode,
-                description: l.darkModeDesc,
-                value: themeService.isDarkMode,
-                onChanged: (val) => themeService.setDarkMode(val),
-              );
-            },
-          ),
-
-          // UI style picker
-          Consumer<ThemeService>(
-            builder: (context, themeService, _) {
-              return _UIStylePicker(
-                current: themeService.uiStyle,
-                onChanged: (style) => themeService.setUIStyle(style),
-              );
-            },
-          ),
-
-          // Language picker
-          Consumer<ThemeService>(
-            builder: (context, themeService, _) {
-              return _LocalePicker(
-                current: themeService.locale,
-                onChanged: (l) => themeService.setLocale(l),
-              );
-            },
-          ),
-
-          Container(height: 1, color: AppColors.border),
-
-          // Donation
-          _SettingAction(
-            label: l10n.supportProject,
-            description: l10n.donateCoffee,
-            icon: '☕',
-            onTap: () => openUrl(kCoffeeUrl),
-          ),
-
-          const SizedBox(height: 16),
-
-          // Updates
-          Consumer<UpdateService>(
-            builder: (context, updateService, _) {
-              return _SettingToggle(
-                label: l10n.checkUpdates,
-                description: l10n.updateBody.split('\n').first,
-                value: updateService.checkAutoUpdates,
-                onChanged: (v) => updateService.setCheckAutoUpdates(v),
-              );
-            },
-          ),
+          content,
         ],
       ),
+    );
+  }
+
+  Widget _buildWindowsContent(BuildContext context) {
+    final l10n = context.l10n;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Consumer<AudioService>(
+          builder: (context, audioService, _) {
+            final l = context.l10n;
+            return _SettingToggle(
+              label: l.launchStartup,
+              description: l.launchStartupDescWin,
+              value: audioService.autostart,
+              onChanged: (val) => audioService.setAutostart(val),
+            );
+          },
+        ),
+        Consumer<ThemeService>(
+          builder: (context, themeService, _) {
+            final l = context.l10n;
+            return _SettingToggle(
+              label: l.showInTaskbar,
+              description: l.showInTaskbarDesc,
+              value: themeService.showInTaskbar,
+              onChanged: (val) => themeService.setShowInTaskbar(val),
+            );
+          },
+        ),
+        Consumer<ThemeService>(
+          builder: (context, themeService, _) {
+            final l = context.l10n;
+            return _SettingToggle(
+              label: l.darkMode,
+              description: l.darkModeDesc,
+              value: themeService.isDarkMode,
+              onChanged: (val) => themeService.setDarkMode(val),
+            );
+          },
+        ),
+        Consumer<ThemeService>(
+          builder: (context, themeService, _) => _UIStylePicker(
+            current: themeService.uiStyle,
+            onChanged: (style) => themeService.setUIStyle(style),
+          ),
+        ),
+        Consumer<ThemeService>(
+          builder: (context, themeService, _) => _LocalePicker(
+            current: themeService.locale,
+            onChanged: (l) => themeService.setLocale(l),
+          ),
+        ),
+        Container(height: 1, color: AppColors.border),
+        _SettingAction(
+          label: l10n.supportProject,
+          description: l10n.donateCoffee,
+          icon: '☕',
+          onTap: () => openUrl(kCoffeeUrl),
+        ),
+        const SizedBox(height: 8),
+        Consumer<UpdateService>(
+          builder: (context, updateService, _) => _SettingToggle(
+            label: l10n.checkUpdates,
+            description: l10n.updateBody.split('\n').first,
+            value: updateService.checkAutoUpdates,
+            onChanged: (v) => updateService.setCheckAutoUpdates(v),
+          ),
+        ),
+        const SizedBox(height: 8),
+      ],
     );
   }
 
