@@ -9,5 +9,10 @@
 
 	<key>com.apple.security.network.client</key>
 	<true/>
+
+	<!-- Required for CATapDescription / AudioHardwareCreateProcessTap (macOS 14.2+).
+	     Needs a provisioned Developer ID — request via Apple Developer portal. -->
+	<key>com.apple.developer.avfoundation.allow-audio-system-tap</key>
+	<true/>
 </dict>
 </plist>

@@ -19,8 +19,18 @@ workflows:
       - name: Install dependencies
         script: flutter pub get
 
+      - name: Build native dylib (CoreAudio backend)
+        script: |
+          cd macos/audio_backend
+          bash build.sh
+
       - name: Build macOS release
         script: flutter build macos --release
+
+      - name: Embed dylib in app bundle
+        script: |
+          cp macos/audio_backend/libaudio_backend.dylib \
+             "build/macos/Build/Products/Release/audio_router.app/Contents/Frameworks/libaudio_backend.dylib"
 
       - name: Package DMG (hdiutil)
         script: |
