@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'dart:io' show Platform;
 import 'package:flutter/cupertino.dart' show CupertinoIcons;
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:macos_ui/macos_ui.dart' as macos;
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:window_manager/window_manager.dart';
 import '../services/audio_service.dart';
 import '../services/theme_service.dart';
@@ -26,13 +28,15 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WindowListener {
   // Keep a direct ref to unregister the callback on dispose
   AudioService? _audioService;
+  Timer? _saveWindowSizeTimer;
 
   @override
   void initState() {
     super.initState();
+    windowManager.addListener(this);
     // Register device change callback after first frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -69,8 +73,22 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
+    windowManager.removeListener(this);
+    _saveWindowSizeTimer?.cancel();
     _audioService?.onDevicesChanged = null;
     super.dispose();
+  }
+
+  // Save window size with a debounce so we don't hammer SharedPreferences
+  @override
+  void onWindowResize() {
+    _saveWindowSizeTimer?.cancel();
+    _saveWindowSizeTimer = Timer(const Duration(milliseconds: 500), () async {
+      final size = await windowManager.getSize();
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setDouble('window_width',  size.width);
+      await prefs.setDouble('window_height', size.height);
+    });
   }
 
   // ─── Dialogs ────────────────────────────────────────────

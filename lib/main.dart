@@ -90,17 +90,22 @@ void main() async {
   final showInTaskbar = prefs.getBool('show_in_taskbar') ??
       (Platform.isMacOS ? true : false);
 
+  // Restore saved window size (default 380×560, min 340×420, no max)
+  final savedW = prefs.getDouble('window_width')  ?? 380.0;
+  final savedH = prefs.getDouble('window_height') ?? 560.0;
+
   // Platform-specific window options
   final windowOptions = WindowOptions(
-    size: const Size(380, 560),
-    minimumSize: const Size(380, 400),
-    center: true,
+    size: Size(savedW, savedH),
+    minimumSize: const Size(340, 420),
+    center: prefs.getDouble('window_width') == null, // only center on first launch
     backgroundColor: Colors.transparent,
     titleBarStyle: TitleBarStyle.hidden,
     skipTaskbar: !showInTaskbar,
     alwaysOnTop: false,
   );
   await windowManager.waitUntilReadyToShow(windowOptions, () async {
+    await windowManager.setResizable(true);
     await windowManager.show();
     await windowManager.focus();
     await windowManager.setPreventClose(true);
