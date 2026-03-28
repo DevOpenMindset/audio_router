@@ -1,4 +1,3 @@
-import 'dart:io' show Platform;
 import '../platform.dart';
 import 'package:flutter/cupertino.dart' show CupertinoIcons;
 import 'package:fluent_ui/fluent_ui.dart';
