@@ -355,6 +355,13 @@ static void CollectSessionsFromDevice(IMMDevice* pDevice, std::set<DWORD>& seenP
 
         AudioSessionState state;
         pControl->GetState(&state);
+        // Show Active and Inactive sessions (app open but silent is still routable).
+        // Only exclude Expired sessions (stream fully closed).
+        if (state == AudioSessionStateExpired) {
+            pControl2->Release();
+            pControl->Release();
+            continue;
+        }
         info.is_active = (state == AudioSessionStateActive) ? 1 : 0;
 
         info.peak_level = 0.0f;          // Peaks are provided by audio_poll_peaks, not here

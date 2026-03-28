@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.2.19] - 2026-03-28
+### Fixed
+- Per-app sessions now visible even when the app is open but temporarily silent (paused Spotify, idle Discord, etc.)
+
 ## [1.2.17] - 2026-03-28
 ### Fixed
 - App version now correctly reflects the release tag — update dialog no longer appears after installing the latest version
