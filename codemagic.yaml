@@ -22,17 +22,20 @@ workflows:
       - name: Build macOS release
         script: flutter build macos --release
 
-      - name: Install create-dmg
-        script: brew install create-dmg
-
-      - name: Package DMG
+      - name: Package DMG (hdiutil)
         script: |
           VERSION=$(echo $CM_TAG | sed 's/^v//')
-          create-dmg \
-            --volname "AudioRouter" \
-            --no-internet-enable \
-            "AudioRouter-${VERSION}.dmg" \
-            "build/macos/Build/Products/Release/audio_router.app"
+          # Create an empty folder to act as the source for the DMG
+          mkdir -p "dmg_source"
+          
+          # Copy the .app into the source folder
+          cp -R "build/macos/Build/Products/Release/audio_router.app" "dmg_source/"
+          
+          # Create a shortcut to the Applications folder
+          ln -s /Applications "dmg_source/Applications"
+          
+          # Use native macOS hdiutil to create the DMG
+          hdiutil create -volname "AudioRouter" -srcfolder "dmg_source" -ov -format UDZO "AudioRouter-${VERSION}.dmg"
 
       - name: Upload DMG to GitHub Release
         script: |
