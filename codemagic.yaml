@@ -51,9 +51,9 @@ workflows:
         script: |
           VERSION=$(echo $CM_TAG | sed 's/^v//')
           export GH_TOKEN=$MAC_GH_TOKEN
-          if ! gh release upload "$CM_TAG" "AudioRouter-${VERSION}.dmg" --repo DevOpenMindset/audio_router --clobber; then
+          if ! gh release upload "$CM_TAG" "AudioRouter-${VERSION}.dmg" --repo DevOpenMindset/audio_router_releases --clobber; then
             echo "Release not found, creating it since Codemagic finished first..."
-            gh release create "$CM_TAG" "AudioRouter-${VERSION}.dmg" --repo DevOpenMindset/audio_router -t "Release $CM_TAG" --generate-notes
+            gh release create "$CM_TAG" "AudioRouter-${VERSION}.dmg" --repo DevOpenMindset/audio_router_releases -t "Release $CM_TAG" --generate-notes
           fi
         
     artifacts:

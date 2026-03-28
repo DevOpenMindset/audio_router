@@ -20,7 +20,7 @@ class UpdateInfo {
 }
 
 class UpdateService {
-  static const String _repoUrl = 'https://api.github.com/repos/DevOpenMindset/audio_router/releases/latest';
+  static const String _repoUrl = 'https://api.github.com/repos/DevOpenMindset/audio_router_releases/releases/latest';
   static const String _prefSkipVersion = 'update_skip_version';
   static const String _prefCheckAuto = 'update_check_auto';
 

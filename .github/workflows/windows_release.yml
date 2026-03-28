@@ -5,9 +5,6 @@ on:
     tags:
       - 'v*'
 
-permissions:
-  contents: write
-
 jobs:
   build-windows:
     runs-on: windows-latest
@@ -38,6 +35,16 @@ jobs:
         run: iscc installer/AudioRouter.iss
 
       - name: Upload installer to release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: installer/output/AudioRouter-Setup-*.exe
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+        run: |
+          TAG="${{ github.ref_name }}"
+          VERSION="${TAG#v}"
+          EXE="installer/output/AudioRouter-Setup-${VERSION}.exe"
+          if ! gh release upload "$TAG" "$EXE" --repo DevOpenMindset/audio_router_releases --clobber 2>/dev/null; then
+            gh release create "$TAG" "$EXE" \
+              --repo DevOpenMindset/audio_router_releases \
+              --title "Release $TAG" \
+              --generate-notes
+          fi
