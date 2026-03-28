@@ -27,12 +27,6 @@
 #include <cstring>
 #include <algorithm>
 
-// ─── Compatibility shims ──────────────────────────────────────
-
-#ifndef kAudioObjectPropertyElementMain
-#define kAudioObjectPropertyElementMain kAudioObjectPropertyElementMaster
-#endif
-
 // Process audio object properties — macOS 12+
 #ifndef kAudioHardwarePropertyProcessObjectList
 #define kAudioHardwarePropertyProcessObjectList 'plst'
@@ -59,10 +53,12 @@
 @property (nonatomic, copy) NSArray<NSNumber *> *mutedProcesses;
 @property (nonatomic, copy) NSString *name;
 @end
-extern OSStatus AudioHardwareCreateProcessTap(CATapDescription *inDesc, AudioObjectID *outTapID);
-extern OSStatus AudioHardwareDestroyProcessTap(AudioObjectID inTapID);
+extern "C" OSStatus AudioHardwareCreateProcessTap(CATapDescription *inDesc, AudioObjectID *outTapID);
+extern "C" OSStatus AudioHardwareDestroyProcessTap(AudioObjectID inTapID);
 #else
 #include <CoreAudio/CATapDescription.h>
+// AudioHardwareDestroyProcessTap may be absent in newer SDK CATapDescription.h headers
+extern "C" OSStatus AudioHardwareDestroyProcessTap(AudioObjectID inTapID);
 #endif
 
 // ─── Internal State ──────────────────────────────────────────
@@ -447,7 +443,7 @@ static int32_t StartTapRoute(pid_t pid, AudioObjectID processObj, AudioObjectID 
         AVAudioEngine *engine = [[AVAudioEngine alloc] init];
 
         // Point inputNode at the tap virtual device
-        AudioUnit inputUnit = engine.inputNode.audioUnit.audioUnit;
+        AudioUnit inputUnit = engine.inputNode.audioUnit;
         st = AudioUnitSetProperty(inputUnit,
             kAudioOutputUnitProperty_CurrentDevice,
             kAudioUnitScope_Global, 0,
@@ -458,7 +454,7 @@ static int32_t StartTapRoute(pid_t pid, AudioObjectID processObj, AudioObjectID 
         }
 
         // Point outputNode at target device
-        AudioUnit outputUnit = engine.outputNode.audioUnit.audioUnit;
+        AudioUnit outputUnit = engine.outputNode.audioUnit;
         st = AudioUnitSetProperty(outputUnit,
             kAudioOutputUnitProperty_CurrentDevice,
             kAudioUnitScope_Global, 0,
