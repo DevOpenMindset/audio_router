@@ -58,14 +58,9 @@ class AudioService extends ChangeNotifier {
 
   List<AudioDevice> get devices => List.unmodifiable(_devices);
   List<AudioSession> get sessions => List.unmodifiable(_sessions);
-  // A routed session stays in activeSessions even when WASAPI marks it inactive
-  // during the brief device-transition period.
-  List<AudioSession> get activeSessions => _sessions
-      .where((s) => s.isActive || _persistedRoutes.containsKey(s.processId))
-      .toList();
-  List<AudioSession> get inactiveSessions => _sessions
-      .where((s) => !s.isActive && !_persistedRoutes.containsKey(s.processId))
-      .toList();
+  // All non-expired sessions (expired are already filtered in native code).
+  // Includes both Active (playing) and Inactive (open but silent) sessions.
+  List<AudioSession> get activeSessions => List.unmodifiable(_sessions);
   List<DuckRule> get duckRules => List.unmodifiable(_duckRules);
 
   AudioService() {
