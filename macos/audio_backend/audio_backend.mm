@@ -18,6 +18,9 @@
 #include <AudioUnit/AudioUnit.h>
 #include <Carbon/Carbon.h>
 #include <libproc.h>
+#ifndef PROC_NAME_LEN
+#define PROC_NAME_LEN 256
+#endif
 
 #include <string>
 #include <vector>
