@@ -10,11 +10,10 @@ import '../services/theme_service.dart';
 import '../l10n/app_localizations.dart';
 
 // ── URLs ────────────────────────────────────────────────────
-const _paypalUrl = 'https://paypal.me/YOUR_PAYPAL_USERNAME';
-const _coffeeUrl = 'https://buymeacoffee.com/YOUR_USERNAME';
+const kCoffeeUrl = 'https://buymeacoffee.com/devopenmindset';
 
 /// Open a URL using the OS default handler (no extra dependency).
-void _openUrl(String url) {
+void openUrl(String url) {
   if (Platform.isWindows) {
     Process.run('cmd', ['/c', 'start', '', url]);
   } else if (Platform.isMacOS) {
@@ -120,27 +119,16 @@ class _WindowsDonationDialog extends StatelessWidget {
               ),
             ),
 
-            // Donation buttons
+            // Donation button
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: _DonateChip(
-                      emoji: '💳',
-                      label: l10n.donatePaypal,
-                      onTap: () => _openUrl(_paypalUrl),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: _DonateChip(
-                      emoji: '☕',
-                      label: l10n.donateCoffee,
-                      onTap: () => _openUrl(_coffeeUrl),
-                    ),
-                  ),
-                ],
+              child: SizedBox(
+                width: double.infinity,
+                child: _DonateChip(
+                  emoji: '☕',
+                  label: l10n.donateCoffee,
+                  onTap: () => openUrl(kCoffeeUrl),
+                ),
               ),
             ),
 
@@ -281,21 +269,10 @@ void _showMacosDonation(BuildContext context) {
             ),
           ),
           const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              _DonateChip(
-                emoji: '💳',
-                label: l10n.donatePaypal,
-                onTap: () => _openUrl(_paypalUrl),
-              ),
-              const SizedBox(width: 8),
-              _DonateChip(
-                emoji: '☕',
-                label: l10n.donateCoffee,
-                onTap: () => _openUrl(_coffeeUrl),
-              ),
-            ],
+          _DonateChip(
+            emoji: '☕',
+            label: l10n.donateCoffee,
+            onTap: () => openUrl(kCoffeeUrl),
           ),
         ],
       ),

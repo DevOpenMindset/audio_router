@@ -66,15 +66,24 @@ class SettingsScreen extends StatelessWidget {
           Consumer<AudioService>(
             builder: (context, audioService, _) {
               final l = context.l10n;
-              return Column(
-                children: [
-                  _SettingToggle(
-                    label: l.launchStartup,
-                    description: l.launchStartupDescWin,
-                    value: audioService.autostart,
-                    onChanged: (val) => audioService.setAutostart(val),
-                  ),
-                ],
+              return _SettingToggle(
+                label: l.launchStartup,
+                description: l.launchStartupDescWin,
+                value: audioService.autostart,
+                onChanged: (val) => audioService.setAutostart(val),
+              );
+            },
+          ),
+
+          // Taskbar visibility
+          Consumer<ThemeService>(
+            builder: (context, themeService, _) {
+              final l = context.l10n;
+              return _SettingToggle(
+                label: l.showInTaskbar,
+                description: l.showInTaskbarDesc,
+                value: themeService.showInTaskbar,
+                onChanged: (val) => themeService.setShowInTaskbar(val),
               );
             },
           ),
@@ -117,9 +126,9 @@ class SettingsScreen extends StatelessWidget {
           // Donation
           _SettingAction(
             label: l10n.supportProject,
-            description: l10n.donateBody.split('\n').first,
-            icon: '❤️',
-            onTap: () => showDonationDialog(context),
+            description: l10n.donateCoffee,
+            icon: '☕',
+            onTap: () => openUrl(kCoffeeUrl),
           ),
 
           const SizedBox(height: 16),
@@ -206,6 +215,19 @@ class SettingsScreen extends StatelessWidget {
               );
             },
           ),
+          Consumer<ThemeService>(
+            builder: (ctx, themeService, _) {
+              final l = ctx.l10n;
+              return _macToggle(
+                context: ctx,
+                icon: CupertinoIcons.square_stack,
+                label: l.showInDock,
+                subtitle: l.showInTaskbarDesc,
+                value: themeService.showInTaskbar,
+                onChanged: (v) => themeService.setShowInTaskbar(v),
+              );
+            },
+          ),
 
           // UI style picker
           Padding(
@@ -244,8 +266,8 @@ class SettingsScreen extends StatelessWidget {
             context: context,
             icon: CupertinoIcons.heart,
             label: l10n.supportProject,
-            subtitle: l10n.donateBody.split('\n').first,
-            onTap: () => showDonationDialog(context),
+            subtitle: l10n.donateCoffee,
+            onTap: () => openUrl(kCoffeeUrl),
           ),
 
           const SizedBox(height: 20),

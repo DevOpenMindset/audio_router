@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:window_manager/window_manager.dart';
 import '../theme/app_theme.dart';
 import '../platform.dart' as _plat;
 
@@ -10,11 +11,14 @@ class ThemeService extends ChangeNotifier {
   String _uiStyle = Platform.isWindows ? 'win' : 'mac';
   String _locale = 'fr';
   bool _loaded = false;
+  // macOS: show in Dock by default; Windows: hidden from taskbar by default (lives in tray)
+  bool _showInTaskbar = Platform.isMacOS ? true : false;
 
   bool get isDarkMode => _isDarkMode;
   String get uiStyle => _uiStyle;
   String get locale => _locale;
   bool get isLoaded => _loaded;
+  bool get showInTaskbar => _showInTaskbar;
 
   ThemeService() {
     _load();
@@ -27,6 +31,8 @@ class ThemeService extends ChangeNotifier {
       _uiStyle = prefs.getString('ui_style') ??
           (Platform.isWindows ? 'win' : 'mac');
       _locale = prefs.getString('locale') ?? 'fr';
+      _showInTaskbar = prefs.getBool('show_in_taskbar') ??
+          (Platform.isMacOS ? true : false);
     } catch (e) {
       debugPrint('Failed to load theme: $e');
     }
@@ -83,6 +89,19 @@ class ThemeService extends ChangeNotifier {
       await prefs.setString('locale', _locale);
     } catch (e) {
       debugPrint('Failed to save locale: $e');
+    }
+  }
+
+  Future<void> setShowInTaskbar(bool value) async {
+    if (_showInTaskbar == value) return;
+    _showInTaskbar = value;
+    notifyListeners();
+    await windowManager.setSkipTaskbar(!value);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('show_in_taskbar', value);
+    } catch (e) {
+      debugPrint('Failed to save show_in_taskbar: $e');
     }
   }
 }

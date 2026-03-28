@@ -86,6 +86,10 @@ void main() async {
 
   await windowManager.ensureInitialized();
   
+  // Load saved taskbar preference (default: show in Dock on macOS, hide on Windows)
+  final showInTaskbar = prefs.getBool('show_in_taskbar') ??
+      (Platform.isMacOS ? true : false);
+
   // Platform-specific window options
   final windowOptions = WindowOptions(
     size: const Size(380, 560),
@@ -93,9 +97,8 @@ void main() async {
     center: true,
     backgroundColor: Colors.transparent,
     titleBarStyle: TitleBarStyle.hidden,
-    // macOS-specific options
-    skipTaskbar: Platform.isMacOS ? false : true,
-    alwaysOnTop: Platform.isMacOS ? false : false,
+    skipTaskbar: !showInTaskbar,
+    alwaysOnTop: false,
   );
   await windowManager.waitUntilReadyToShow(windowOptions, () async {
     await windowManager.show();

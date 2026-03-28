@@ -107,9 +107,15 @@ class AppLocalizations {
     fr: 'AudioRouter est gratuit et open source.\nSi vous le trouvez utile, offrez-moi un café ou faites un petit don — ça aide beaucoup !',
     es: 'AudioRouter es gratuito y de código abierto.\nSi te resulta útil, invítame a un café o haz una pequeña donación — ¡ayuda mucho!',
   );
-  String get donatePaypal   => _p(en: 'PayPal', fr: 'PayPal', es: 'PayPal');
   String get donateCoffee   => _p(en: 'Buy Me a Coffee', fr: 'Buy Me a Coffee', es: 'Buy Me a Coffee');
   String get maybeLater     => _p(en: 'Maybe later', fr: 'Peut-être plus tard', es: 'Quizás más tarde');
+  String get showInDock     => _p(en: 'Show in Dock', fr: 'Afficher dans le Dock', es: 'Mostrar en el Dock');
+  String get showInTaskbar  => _p(en: 'Show in taskbar', fr: 'Afficher dans la barre des tâches', es: 'Mostrar en la barra de tareas');
+  String get showInTaskbarDesc => _p(
+    en: 'Keep the app visible in the Dock / taskbar.',
+    fr: 'Maintenir l\'app visible dans le Dock / la barre des tâches.',
+    es: 'Mantener la app visible en el Dock / barra de tareas.',
+  );
   String get thankYou       => _p(en: 'Thank you! ❤️', fr: 'Merci ! ❤️', es: '¡Gracias! ❤️');
 
   // ── Auto-Update ───────────────────────────────────────────
