@@ -10,15 +10,21 @@ import '../services/theme_service.dart';
 import '../l10n/app_localizations.dart';
 
 
-/// Platform-adaptive title bar.
-/// Windows → Win11-style caption buttons (right-aligned, 46 × 32)
-/// macOS   → Traffic-light circles (left-aligned, 12 px) + centred title
+/// Platform-adaptive title bar — tabs are embedded directly inside.
+/// Windows → Win11 caption buttons on the right, pivot tabs in the centre.
+/// macOS   → Traffic-light circles on the left, tab buttons in the centre.
 class CustomTitleBar extends StatelessWidget {
   final VoidCallback? onClose;
   final VoidCallback? onMinimize;
   final VoidCallback? onSettings;
   final VoidCallback? onReset;
   final VoidCallback? onDonate;
+
+  // Embedded tab navigation
+  final List<String> tabLabels;
+  final List<IconData> tabIcons;
+  final int selectedTab;
+  final ValueChanged<int> onTabChanged;
 
   const CustomTitleBar({
     super.key,
@@ -27,6 +33,10 @@ class CustomTitleBar extends StatelessWidget {
     this.onSettings,
     this.onReset,
     this.onDonate,
+    required this.tabLabels,
+    required this.tabIcons,
+    required this.selectedTab,
+    required this.onTabChanged,
   });
 
   @override
@@ -38,16 +48,22 @@ class CustomTitleBar extends StatelessWidget {
           ? _MacosTitleBar(
               onClose: onClose,
               onMinimize: onMinimize,
-              onSettings: onSettings,
               onReset: onReset,
               onDonate: onDonate,
+              tabLabels: tabLabels,
+              tabIcons: tabIcons,
+              selectedTab: selectedTab,
+              onTabChanged: onTabChanged,
             )
           : _WindowsTitleBar(
               onClose: onClose,
               onMinimize: onMinimize,
-              onSettings: onSettings,
               onReset: onReset,
               onDonate: onDonate,
+              tabLabels: tabLabels,
+              tabIcons: tabIcons,
+              selectedTab: selectedTab,
+              onTabChanged: onTabChanged,
             ),
     );
   }
@@ -60,16 +76,22 @@ class CustomTitleBar extends StatelessWidget {
 class _WindowsTitleBar extends StatelessWidget {
   final VoidCallback? onClose;
   final VoidCallback? onMinimize;
-  final VoidCallback? onSettings;
   final VoidCallback? onReset;
   final VoidCallback? onDonate;
+  final List<String> tabLabels;
+  final List<IconData> tabIcons;
+  final int selectedTab;
+  final ValueChanged<int> onTabChanged;
 
   const _WindowsTitleBar({
     this.onClose,
     this.onMinimize,
-    this.onSettings,
     this.onReset,
     this.onDonate,
+    required this.tabLabels,
+    required this.tabIcons,
+    required this.selectedTab,
+    required this.onTabChanged,
   });
 
   @override
@@ -77,58 +99,57 @@ class _WindowsTitleBar extends StatelessWidget {
     context.watch<ThemeService>();
     final l10n = context.l10n;
     return Container(
-      height: 32,
-      color: AppColors.bgPrimary,
+      height: 40,
+      decoration: BoxDecoration(
+        color: AppColors.bgPrimary,
+        border: Border(bottom: BorderSide(color: AppColors.border, width: 0.5)),
+      ),
       child: Row(
         children: [
+          // ── Logo + name ─────────────────────────────────────
           const SizedBox(width: 12),
-          CustomPaint(
-            size: const Size(14, 14),
-            painter: _AppLogoPainter(),
-          ),
-          const SizedBox(width: 7),
+          CustomPaint(size: const Size(13, 13), painter: _AppLogoPainter()),
+          const SizedBox(width: 6),
           Text(
             l10n.appName,
             style: AppTheme.inter(
-              fontSize: 12,
+              fontSize: 11,
               fontWeight: FontWeight.w400,
-              color: AppColors.textSecondary,
+              color: AppColors.textTertiary,
               letterSpacing: -0.1,
             ),
           ),
+          // ── Separator ───────────────────────────────────────
+          Container(
+            width: 0.5, height: 14, margin: const EdgeInsets.symmetric(horizontal: 10),
+            color: AppColors.border,
+          ),
+          // ── Pivot tabs (icon + label + accent underline) ────
+          ...List.generate(tabLabels.length, (i) => _WinTitleTab(
+            label: tabLabels[i],
+            icon: tabIcons[i],
+            selected: selectedTab == i,
+            onTap: () => onTabChanged(i),
+          )),
           const Spacer(),
-          // ── Utility buttons (reset + settings) ──────────────
+          // ── Utility buttons ─────────────────────────────────
           _WinUtilButton(
             onTap: onReset,
             tooltip: l10n.resetTooltip,
-            child: CustomPaint(
-              size: const Size(12, 12),
-              painter: _ResetIconPainter(),
-            ),
+            child: CustomPaint(size: const Size(12, 12), painter: _ResetIconPainter()),
           ),
           _WinUtilButton(
             onTap: onDonate,
             tooltip: l10n.supportProject,
-            child: CustomPaint(
-              size: const Size(12, 11),
-              painter: _HeartIconPainter(),
-            ),
-          ),
-          _WinUtilButton(
-            onTap: onSettings,
-            child: CustomPaint(
-              size: const Size(13, 13),
-              painter: _GearIconPainter(),
-            ),
+            child: CustomPaint(size: const Size(12, 11), painter: _HeartIconPainter()),
           ),
           const SizedBox(width: 4),
-          // ── Win11 caption buttons (46 × 32 close, 46 × 32 min) ──
+          // ── Win11 caption buttons ────────────────────────────
           _WinCaptionButton(
             onTap: onMinimize,
             isClose: false,
             child: Container(
-              width: 10,
-              height: 1.3,
+              width: 10, height: 1.3,
               decoration: BoxDecoration(
                 color: AppColors.textSecondary,
                 borderRadius: BorderRadius.circular(1),
@@ -144,6 +165,73 @@ class _WindowsTitleBar extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Compact pivot tab embedded in the Win title bar.
+class _WinTitleTab extends StatefulWidget {
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+  const _WinTitleTab({
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
+  @override State<_WinTitleTab> createState() => _WinTitleTabState();
+}
+
+class _WinTitleTabState extends State<_WinTitleTab> {
+  bool _hovered = false;
+  @override
+  Widget build(BuildContext context) {
+    final color = widget.selected
+        ? AppColors.textPrimary
+        : _hovered ? AppColors.textSecondary : AppColors.textTertiary;
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit:  (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 140),
+          padding: const EdgeInsets.symmetric(horizontal: 11),
+          height: double.infinity,
+          decoration: BoxDecoration(
+            color: _hovered && !widget.selected
+                ? AppColors.bgHover
+                : Colors.transparent,
+            border: Border(
+              bottom: BorderSide(
+                color: widget.selected ? AppColors.accent : Colors.transparent,
+                width: 2,
+              ),
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(widget.icon, size: 13,
+                  color: widget.selected ? AppColors.accent : color),
+              const SizedBox(width: 5),
+              AnimatedDefaultTextStyle(
+                duration: const Duration(milliseconds: 140),
+                style: AppTheme.inter(
+                  fontSize: 12,
+                  fontWeight: widget.selected ? FontWeight.w600 : FontWeight.w400,
+                  color: color,
+                ),
+                child: Text(widget.label),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -251,16 +339,22 @@ class _WinCaptionButtonState extends State<_WinCaptionButton> {
 class _MacosTitleBar extends StatelessWidget {
   final VoidCallback? onClose;
   final VoidCallback? onMinimize;
-  final VoidCallback? onSettings;
   final VoidCallback? onReset;
   final VoidCallback? onDonate;
+  final List<String> tabLabels;
+  final List<IconData> tabIcons;
+  final int selectedTab;
+  final ValueChanged<int> onTabChanged;
 
   const _MacosTitleBar({
     this.onClose,
     this.onMinimize,
-    this.onSettings,
     this.onReset,
     this.onDonate,
+    required this.tabLabels,
+    required this.tabIcons,
+    required this.selectedTab,
+    required this.onTabChanged,
   });
 
   @override
@@ -268,12 +362,10 @@ class _MacosTitleBar extends StatelessWidget {
     context.watch<ThemeService>();
     final l10n = context.l10n;
     return Container(
-      height: 28,
+      height: 44,
       decoration: BoxDecoration(
         color: AppColors.bgPrimary,
-        border: Border(
-          bottom: BorderSide(color: AppColors.border, width: 0.5),
-        ),
+        border: Border(bottom: BorderSide(color: AppColors.border, width: 0.5)),
       ),
       child: Stack(
         children: [
@@ -282,7 +374,7 @@ class _MacosTitleBar extends StatelessWidget {
             child: Align(
               alignment: Alignment.centerLeft,
               child: Padding(
-                padding: const EdgeInsets.only(left: 10),
+                padding: const EdgeInsets.only(left: 12),
                 child: MacosTrafficLights(
                   onClose: onClose,
                   onMinimize: onMinimize,
@@ -290,26 +382,13 @@ class _MacosTitleBar extends StatelessWidget {
               ),
             ),
           ),
-          // ── App title (centre) ────────────────────────────
+          // ── Tab buttons (centre) ───────────────────────────
           Center(
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CustomPaint(
-                  size: const Size(12, 12),
-                  painter: _AppLogoPainter(),
-                ),
-                const SizedBox(width: 5),
-                Text(
-                  l10n.appName,
-                  style: AppTheme.inter(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.textSecondary,
-                    letterSpacing: -0.1,
-                  ),
-                ),
-              ],
+            child: _MacTabGroup(
+              labels: tabLabels,
+              icons: tabIcons,
+              selected: selectedTab,
+              onChanged: onTabChanged,
             ),
           ),
           // ── Action buttons (right) ────────────────────────
@@ -317,7 +396,7 @@ class _MacosTitleBar extends StatelessWidget {
             child: Align(
               alignment: Alignment.centerRight,
               child: Padding(
-                padding: const EdgeInsets.only(right: 6),
+                padding: const EdgeInsets.only(right: 8),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -332,17 +411,131 @@ class _MacosTitleBar extends StatelessWidget {
                       tooltip: l10n.supportProject,
                       icon: CupertinoIcons.heart,
                     ),
-                    const SizedBox(width: 2),
-                    _MacosActionButton(
-                      onTap: onSettings,
-                      icon: CupertinoIcons.gear,
-                    ),
                   ],
                 ),
               ),
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Segmented tab group for the macOS title bar.
+class _MacTabGroup extends StatelessWidget {
+  final List<String> labels;
+  final List<IconData> icons;
+  final int selected;
+  final ValueChanged<int> onChanged;
+  const _MacTabGroup({
+    required this.labels,
+    required this.icons,
+    required this.selected,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 28,
+      decoration: BoxDecoration(
+        color: isDarkTheme
+            ? Colors.white.withValues(alpha: 0.07)
+            : Colors.black.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(7),
+        border: Border.all(
+          color: isDarkTheme
+              ? Colors.white.withValues(alpha: 0.10)
+              : Colors.black.withValues(alpha: 0.07),
+          width: 0.5,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: List.generate(labels.length, (i) {
+          final isLast = i == labels.length - 1;
+          return Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _MacTabBtn(
+                label: labels[i],
+                icon: icons[i],
+                selected: selected == i,
+                onTap: () => onChanged(i),
+              ),
+              if (!isLast)
+                Container(
+                  width: 0.5, height: 16,
+                  color: isDarkTheme
+                      ? Colors.white.withValues(alpha: 0.10)
+                      : Colors.black.withValues(alpha: 0.07),
+                ),
+            ],
+          );
+        }),
+      ),
+    );
+  }
+}
+
+class _MacTabBtn extends StatefulWidget {
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+  const _MacTabBtn({
+    required this.label, required this.icon,
+    required this.selected, required this.onTap,
+  });
+  @override State<_MacTabBtn> createState() => _MacTabBtnState();
+}
+
+class _MacTabBtnState extends State<_MacTabBtn> {
+  bool _hovered = false;
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit:  (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            color: widget.selected
+                ? AppColors.accent.withValues(alpha: isDarkTheme ? 0.22 : 0.13)
+                : _hovered
+                    ? (isDarkTheme
+                        ? Colors.white.withValues(alpha: 0.06)
+                        : Colors.black.withValues(alpha: 0.04))
+                    : Colors.transparent,
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                widget.icon, size: 12,
+                color: widget.selected ? AppColors.accent
+                    : _hovered ? AppColors.textSecondary : AppColors.textTertiary,
+              ),
+              const SizedBox(width: 5),
+              Text(
+                widget.label,
+                style: AppTheme.inter(
+                  fontSize: 11,
+                  fontWeight: widget.selected ? FontWeight.w600 : FontWeight.w400,
+                  color: widget.selected ? AppColors.accent
+                      : _hovered ? AppColors.textSecondary : AppColors.textTertiary,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -605,38 +798,6 @@ class _AppLogoPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
 
-class _GearIconPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = AppColors.textTertiary
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.2;
-
-    final cx = size.width / 2;
-    final cy = size.height / 2;
-
-    canvas.drawCircle(Offset(cx, cy), 3, paint);
-    paint.style = PaintingStyle.fill;
-    canvas.drawCircle(Offset(cx, cy), 1.2, paint);
-    paint.style = PaintingStyle.stroke;
-    paint.strokeWidth = 1.8;
-
-    for (int i = 0; i < 4; i++) {
-      final angle = i * math.pi / 2;
-      final cosA = math.cos(angle);
-      final sinA = math.sin(angle);
-      canvas.drawLine(
-        Offset(cx + cosA * 3, cy + sinA * 3),
-        Offset(cx + cosA * 5, cy + sinA * 5),
-        paint,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
-}
 
 class _ResetIconPainter extends CustomPainter {
   @override

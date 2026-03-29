@@ -104,27 +104,22 @@ class _HomeScreenState extends State<HomeScreen> with WindowListener {
       color: AppColors.bgPrimary,
       child: Column(
         children: [
-          // ── Drag + title bar ─────────────────────────────────
+          // ── Title bar + embedded pivot tabs ──────────────────
           Consumer<AudioService>(
             builder: (context, audioService, _) => CustomTitleBar(
               onClose: () { audioService.resetAllRoutes(); windowManager.hide(); },
               onMinimize: () => windowManager.minimize(),
-              onSettings: null,
               onDonate: () => showDonationDialog(context),
               onReset: () { audioService.resetAllRoutes(); audioService.clearRouteMemory(); },
+              tabLabels: [l10n.appsTab, l10n.rulesTab, l10n.settingsTab],
+              tabIcons: const [
+                FluentIcons.speakers,
+                FluentIcons.lightning_bolt,
+                FluentIcons.settings,
+              ],
+              selectedTab: _tab,
+              onTabChanged: _setTab,
             ),
-          ),
-
-          // ── Windows Pivot tabs ───────────────────────────────
-          _WinPivot(
-            tabs: [l10n.appsTab, l10n.rulesTab, l10n.settingsTab],
-            icons: const [
-              FluentIcons.speakers,
-              FluentIcons.lightning_bolt,
-              FluentIcons.settings,
-            ],
-            selected: _tab,
-            onChanged: _setTab,
           ),
 
           // ── Content ──────────────────────────────────────────
@@ -141,6 +136,8 @@ class _HomeScreenState extends State<HomeScreen> with WindowListener {
   Widget _buildMacOS(BuildContext context) {
     final audioService = context.read<AudioService>();
     final l10n = context.l10n;
+    // On true macOS, use macos.MacosScaffold with native toolbar.
+    // The custom _MacosTitleBar (with embedded tabs) handles the non-native case.
     return ColoredBox(
       color: AppColors.bgPrimary,
       child: macos.MacosScaffold(
@@ -321,120 +318,8 @@ class _HomeScreenState extends State<HomeScreen> with WindowListener {
 }
 
 // ════════════════════════════════════════════════════════════════
-// Windows Pivot — Windows 11 style: icon + label, accent underline
+// macOS toolbar tabs (used inside true macOS MacosScaffold toolbar)
 // ════════════════════════════════════════════════════════════════
-
-class _WinPivot extends StatelessWidget {
-  final List<String> tabs;
-  final List<IconData> icons;
-  final int selected;
-  final ValueChanged<int> onChanged;
-
-  const _WinPivot({
-    required this.tabs,
-    required this.icons,
-    required this.selected,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 40,
-      decoration: BoxDecoration(
-        color: AppColors.bgPrimary,
-        border: Border(bottom: BorderSide(color: AppColors.border, width: 0.5)),
-      ),
-      child: Row(
-        children: [
-          const SizedBox(width: 4),
-          ...List.generate(tabs.length, (i) => _PivotTab(
-            label: tabs[i],
-            icon: icons[i],
-            index: i,
-            selected: selected,
-            onTap: onChanged,
-          )),
-        ],
-      ),
-    );
-  }
-}
-
-class _PivotTab extends StatefulWidget {
-  final String label;
-  final IconData icon;
-  final int index;
-  final int selected;
-  final ValueChanged<int> onTap;
-  const _PivotTab({
-    required this.label,
-    required this.icon,
-    required this.index,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  State<_PivotTab> createState() => _PivotTabState();
-}
-
-class _PivotTabState extends State<_PivotTab> {
-  bool _hovered = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final isSelected = widget.index == widget.selected;
-    final color = isSelected
-        ? AppColors.textPrimary
-        : _hovered
-            ? AppColors.textSecondary
-            : AppColors.textTertiary;
-
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit:  (_) => setState(() => _hovered = false),
-      child: GestureDetector(
-        onTap: () => widget.onTap(widget.index),
-        behavior: HitTestBehavior.opaque,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          padding: const EdgeInsets.symmetric(horizontal: 14),
-          decoration: BoxDecoration(
-            color: _hovered && !isSelected ? AppColors.bgHover : Colors.transparent,
-            border: Border(
-              bottom: BorderSide(
-                color: isSelected ? AppColors.accent : Colors.transparent,
-                width: 2,
-              ),
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                widget.icon,
-                size: 14,
-                color: isSelected ? AppColors.accent : color,
-              ),
-              const SizedBox(width: 6),
-              AnimatedDefaultTextStyle(
-                duration: const Duration(milliseconds: 150),
-                style: AppTheme.inter(
-                  fontSize: 12,
-                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                  color: color,
-                ),
-                child: Text(widget.label),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 // ════════════════════════════════════════════════════════════════
 // macOS toolbar tabs — icon (CupertinoIcons) + label, native feel
