@@ -478,119 +478,63 @@ class _UIStylePicker extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: _StyleOption(
-                  label: 'Windows 11',
-                  emoji: '🪟',
-                  value: 'win',
-                  selected: current == 'win',
-                  onTap: () => onChanged('win'),
-                ),
+                child: current == 'win'
+                    ? FilledButton(
+                        onPressed: () => onChanged('win'),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text('🪟', style: TextStyle(fontSize: 14)),
+                            const SizedBox(width: 6),
+                            Text('Windows 11', style: AppTheme.inter(fontSize: 12, color: Colors.white)),
+                          ],
+                        ),
+                      )
+                    : Button(
+                        onPressed: () => onChanged('win'),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text('🪟', style: TextStyle(fontSize: 14)),
+                            const SizedBox(width: 6),
+                            Text('Windows 11', style: AppTheme.inter(fontSize: 12)),
+                          ],
+                        ),
+                      ),
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: _StyleOption(
-                  label: 'macOS',
-                  emoji: '🍎',
-                  value: 'mac',
-                  selected: current == 'mac',
-                  onTap: () => onChanged('mac'),
-                ),
+                child: current == 'mac'
+                    ? FilledButton(
+                        onPressed: () => onChanged('mac'),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text('🍎', style: TextStyle(fontSize: 14)),
+                            const SizedBox(width: 6),
+                            Text('macOS', style: AppTheme.inter(fontSize: 12, color: Colors.white)),
+                          ],
+                        ),
+                      )
+                    : Button(
+                        onPressed: () => onChanged('mac'),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text('🍎', style: TextStyle(fontSize: 14)),
+                            const SizedBox(width: 6),
+                            Text('macOS', style: AppTheme.inter(fontSize: 12)),
+                          ],
+                        ),
+                      ),
               ),
             ],
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _StyleOption extends StatefulWidget {
-  final String label;
-  final String emoji;
-  final String value;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _StyleOption({
-    required this.label,
-    required this.emoji,
-    required this.value,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  State<_StyleOption> createState() => _StyleOptionState();
-}
-
-class _StyleOptionState extends State<_StyleOption> {
-  bool _hovered = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        onTap: widget.onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 120),
-          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-          decoration: BoxDecoration(
-            color: widget.selected
-                ? AppColors.accent.withValues(alpha: isDarkTheme ? 0.14 : 0.09)
-                : _hovered
-                    ? AppColors.bgHover
-                    : AppColors.bgTertiary,
-            borderRadius: BorderRadius.circular(AppColors.cardRadius),
-            border: Border.all(
-              color: widget.selected
-                  ? AppColors.accent.withValues(alpha: isDarkTheme ? 0.45 : 0.5)
-                  : _hovered
-                      ? AppColors.borderHover
-                      : AppColors.border,
-              width: widget.selected ? 1.0 : 0.5,
-            ),
-            boxShadow: widget.selected && !isDarkTheme
-                ? [
-                    BoxShadow(
-                      color: AppColors.accent.withValues(alpha: 0.08),
-                      blurRadius: 6,
-                      offset: const Offset(0, 2),
-                    ),
-                  ]
-                : [],
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(widget.emoji, style: const TextStyle(fontSize: 14)),
-              const SizedBox(width: 6),
-              Text(
-                widget.label,
-                style: AppTheme.inter(
-                  fontSize: 12,
-                  fontWeight: widget.selected ? FontWeight.w600 : FontWeight.w400,
-                  color: widget.selected
-                      ? AppColors.accent
-                      : AppColors.textSecondary,
-                ),
-              ),
-              if (widget.selected) ...[
-                const SizedBox(width: 6),
-                Container(
-                  width: 6,
-                  height: 6,
-                  decoration: BoxDecoration(
-                    color: AppColors.accent,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
       ),
     );
   }
@@ -616,55 +560,86 @@ class _LocalePicker extends StatelessWidget {
           const SizedBox(height: 10),
           Row(
             children: [
-              Expanded(child: _LangOption(code: 'fr', label: 'Français', flag: '🇫🇷', selected: current == 'fr', onTap: () => onChanged('fr'))),
+              Expanded(
+                child: current == 'fr'
+                    ? FilledButton(
+                        onPressed: () => onChanged('fr'),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text('FR', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white)),
+                            const SizedBox(height: 2),
+                            Text('Français', style: AppTheme.inter(fontSize: 10, color: Colors.white)),
+                          ],
+                        ),
+                      )
+                    : Button(
+                        onPressed: () => onChanged('fr'),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text('FR', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                            const SizedBox(height: 2),
+                            Text('Français', style: AppTheme.inter(fontSize: 10)),
+                          ],
+                        ),
+                      ),
+              ),
               const SizedBox(width: 6),
-              Expanded(child: _LangOption(code: 'en', label: 'English',  flag: '🇬🇧', selected: current == 'en', onTap: () => onChanged('en'))),
+              Expanded(
+                child: current == 'en'
+                    ? FilledButton(
+                        onPressed: () => onChanged('en'),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text('GB', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white)),
+                            const SizedBox(height: 2),
+                            Text('English', style: AppTheme.inter(fontSize: 10, color: Colors.white)),
+                          ],
+                        ),
+                      )
+                    : Button(
+                        onPressed: () => onChanged('en'),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text('GB', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                            const SizedBox(height: 2),
+                            Text('English', style: AppTheme.inter(fontSize: 10)),
+                          ],
+                        ),
+                      ),
+              ),
               const SizedBox(width: 6),
-              Expanded(child: _LangOption(code: 'es', label: 'Español',  flag: '🇪🇸', selected: current == 'es', onTap: () => onChanged('es'))),
+              Expanded(
+                child: current == 'es'
+                    ? FilledButton(
+                        onPressed: () => onChanged('es'),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text('ES', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white)),
+                            const SizedBox(height: 2),
+                            Text('Español', style: AppTheme.inter(fontSize: 10, color: Colors.white)),
+                          ],
+                        ),
+                      )
+                    : Button(
+                        onPressed: () => onChanged('es'),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text('ES', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                            const SizedBox(height: 2),
+                            Text('Español', style: AppTheme.inter(fontSize: 10)),
+                          ],
+                        ),
+                      ),
+              ),
             ],
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _LangOption extends StatefulWidget {
-  final String code, label, flag;
-  final bool selected;
-  final VoidCallback onTap;
-  const _LangOption({required this.code, required this.label, required this.flag, required this.selected, required this.onTap});
-  @override State<_LangOption> createState() => _LangOptionState();
-}
-class _LangOptionState extends State<_LangOption> {
-  bool _hovered = false;
-  @override
-  Widget build(BuildContext context) {
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        onTap: widget.onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 120),
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
-          decoration: BoxDecoration(
-            color: widget.selected ? AppColors.accent.withValues(alpha: isDarkTheme ? 0.14 : 0.09) : _hovered ? AppColors.bgHover : AppColors.bgTertiary,
-            borderRadius: BorderRadius.circular(AppColors.cardRadius),
-            border: Border.all(
-              color: widget.selected ? AppColors.accent.withValues(alpha: 0.5) : _hovered ? AppColors.borderHover : AppColors.border,
-              width: widget.selected ? 1.0 : 0.5,
-            ),
-          ),
-          child: Column(
-            children: [
-              Text(widget.flag, style: const TextStyle(fontSize: 16)),
-              const SizedBox(height: 2),
-              Text(widget.label, style: AppTheme.inter(fontSize: 10, fontWeight: widget.selected ? FontWeight.w600 : FontWeight.w400, color: widget.selected ? AppColors.accent : AppColors.textSecondary), textAlign: TextAlign.center),
-            ],
-          ),
-        ),
       ),
     );
   }

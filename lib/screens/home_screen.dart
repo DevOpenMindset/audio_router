@@ -215,6 +215,13 @@ class _HomeScreenState extends State<HomeScreen> with WindowListener {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const MacOsRoutingBanner(),
+            // Audio output devices section at the top
+            DeviceFooter(
+              devices: audio.devices,
+              sessions: audio.activeSessions,
+              defaultDeviceId: audio.devices.where((d) => d.isDefault).map((d) => d.id).firstOrNull,
+            ),
+            const SizedBox(height: 16),
             if (sessions.isEmpty)
               _emptyState(context.l10n.noAudio)
             else
@@ -276,23 +283,15 @@ class _HomeScreenState extends State<HomeScreen> with WindowListener {
   // ── Settings ─────────────────────────────────────────────────
 
   Widget _settingsTab(BuildContext context, ScrollController? scrollCtrl) {
-    return Consumer<AudioService>(
-      builder: (context, audio, _) => _scroll(
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            DeviceFooter(
-              devices: audio.devices,
-              sessions: audio.activeSessions,
-              defaultDeviceId: audio.devices.where((d) => d.isDefault).map((d) => d.id).firstOrNull,
-            ),
-            const SizedBox(height: 12),
-            const SettingsScreen(inline: true),
-          ],
-        ),
-        scrollCtrl,
-        topPadding: 8,
+    return _scroll(
+      const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SettingsScreen(inline: true),
+        ],
       ),
+      scrollCtrl,
+      topPadding: 8,
     );
   }
 

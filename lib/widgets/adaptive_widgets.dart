@@ -29,12 +29,14 @@ class AdaptiveButton extends StatelessWidget {
   final VoidCallback? onPressed;
   final Widget child;
   final bool isSmall;
+  final bool isSecondary;
 
   const AdaptiveButton({
     super.key, 
     required this.onPressed, 
     required this.child,
     this.isSmall = false,
+    this.isSecondary = true,
   });
 
   @override
@@ -42,24 +44,40 @@ class AdaptiveButton extends StatelessWidget {
     if (_onMacOS) {
       return macos.PushButton(
         controlSize: isSmall ? macos.ControlSize.small : macos.ControlSize.regular,
-        secondary: true,
+        secondary: isSecondary,
         onPressed: onPressed,
         child: DefaultTextStyle(
           style: TextStyle(
             fontSize: isSmall ? 11 : 13,
-            fontWeight: FontWeight.w500,
-            color: isDarkTheme ? const Color(0xFFFFFFFF) : const Color(0xFF000000),
+            fontWeight: isSecondary ? FontWeight.w500 : FontWeight.w600,
+            color: isSecondary
+                ? (isDarkTheme ? const Color(0xFFFFFFFF) : const Color(0xFF000000))
+                : (isDarkTheme ? const Color(0xFF000000) : const Color(0xFFFFFFFF)),
           ),
           child: child,
         ),
       );
     }
-    return fluent.Button(
-      onPressed: onPressed, 
+    // Windows: use FilledButton for primary, Button for secondary
+    if (isSecondary) {
+      return fluent.Button(
+        onPressed: onPressed, 
+        child: DefaultTextStyle(
+          style: TextStyle(
+            fontSize: isSmall ? 12 : 14,
+            fontWeight: FontWeight.w400,
+          ),
+          child: child,
+        ),
+      );
+    }
+    return fluent.FilledButton(
+      onPressed: onPressed,
       child: DefaultTextStyle(
         style: TextStyle(
           fontSize: isSmall ? 12 : 14,
-          fontWeight: FontWeight.w400,
+          fontWeight: FontWeight.w500,
+          color: const Color(0xFFFFFFFF),
         ),
         child: child,
       ),

@@ -90,14 +90,14 @@ void main() async {
   final showInTaskbar = prefs.getBool('show_in_taskbar') ??
       (Platform.isMacOS ? true : false);
 
-  // Restore saved window size (default 380×560, min 340×420, no max)
+  // Restore saved window size (default 380×560, min: Windows 380×560, macOS 400×500)
   final savedW = prefs.getDouble('window_width')  ?? 380.0;
   final savedH = prefs.getDouble('window_height') ?? 560.0;
 
   // Platform-specific window options
   final windowOptions = WindowOptions(
     size: Size(savedW, savedH),
-    minimumSize: const Size(340, 420),
+    minimumSize: Size(Platform.isWindows ? 380 : 400, Platform.isWindows ? 560 : 500),
     center: prefs.getDouble('window_width') == null, // only center on first launch
     backgroundColor: Colors.transparent,
     titleBarStyle: TitleBarStyle.hidden,
