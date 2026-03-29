@@ -1,6 +1,7 @@
 import '../platform.dart';
 import 'package:flutter/cupertino.dart' show CupertinoIcons;
 import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:macos_ui/macos_ui.dart' as macos;
 import 'package:provider/provider.dart';
 import '../services/audio_service.dart';
@@ -137,7 +138,8 @@ class SettingsScreen extends StatelessWidget {
             onChanged: (v) => updateService.setCheckAutoUpdates(v),
           ),
         ),
-        const SizedBox(height: 8),
+        Container(height: 1, color: AppColors.border),
+        const _VersionTile(),
       ],
     );
   }
@@ -263,6 +265,8 @@ class SettingsScreen extends StatelessWidget {
             onTap: () => openUrl(kCoffeeUrl),
           ),
 
+          Container(height: 0.5, color: AppColors.border),
+          const _VersionTile(),
           const SizedBox(height: 20),
         ],
       ), // Column
@@ -662,6 +666,146 @@ class _LangOptionState extends State<_LangOption> {
           ),
         ),
       ),
+    );
+  }
+}
+
+// ─── Version / About tile ─────────────────────────────────────
+
+class _VersionTile extends StatefulWidget {
+  const _VersionTile();
+  @override
+  State<_VersionTile> createState() => _VersionTileState();
+}
+
+class _VersionTileState extends State<_VersionTile> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final updateService = context.watch<UpdateService>();
+    final version = updateService.currentVersion ?? '…';
+    final notes = updateService.latestKnownNotes;
+    final hasNotes = notes != null && notes.isNotEmpty;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Version row
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            children: [
+              Text('🎛️', style: const TextStyle(fontSize: 14)),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'AudioRouter',
+                      style: AppTheme.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${l10n.currentVersion} $version',
+                      style: AppTheme.inter(fontSize: 10, color: AppColors.textTertiary),
+                    ),
+                  ],
+                ),
+              ),
+              // "What's new" toggle button
+              if (hasNotes)
+                GestureDetector(
+                  onTap: () => setState(() => _expanded = !_expanded),
+                  child: MouseRegion(
+                    cursor: SystemMouseCursors.click,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 120),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: _expanded
+                            ? AppColors.accent.withValues(alpha: 0.12)
+                            : AppColors.bgTertiary,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: _expanded
+                              ? AppColors.accent.withValues(alpha: 0.4)
+                              : AppColors.border,
+                          width: 0.5,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            l10n.whatsNew,
+                            style: AppTheme.inter(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w500,
+                              color: _expanded ? AppColors.accent : AppColors.textSecondary,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Icon(
+                            _expanded ? FluentIcons.chevron_up : FluentIcons.chevron_down,
+                            size: 8,
+                            color: _expanded ? AppColors.accent : AppColors.textTertiary,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                )
+              else
+                GestureDetector(
+                  onTap: () => openUrl('https://github.com/DevOpenMindset/audio_router_releases/releases'),
+                  child: MouseRegion(
+                    cursor: SystemMouseCursors.click,
+                    child: Text(
+                      l10n.seeChangelog,
+                      style: AppTheme.inter(
+                        fontSize: 10,
+                        color: AppColors.accent,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+
+        // Expandable release notes
+        if (_expanded && hasNotes)
+          AnimatedSize(
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOut,
+            child: Container(
+              margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.bgTertiary,
+                borderRadius: BorderRadius.circular(AppColors.cardRadius),
+                border: Border.all(color: AppColors.border, width: 0.5),
+              ),
+              child: MarkdownBody(
+                data: notes,
+                styleSheet: MarkdownStyleSheet(
+                  p: AppTheme.inter(fontSize: 11, color: AppColors.textSecondary, height: 1.5),
+                  h2: AppTheme.inter(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                  h3: AppTheme.inter(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                  listBullet: AppTheme.inter(fontSize: 11, color: AppColors.textSecondary),
+                  code: AppTheme.inter(fontSize: 10, color: AppColors.accent),
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

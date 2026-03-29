@@ -146,6 +146,11 @@ class AppLocalizations {
   String get downloading     => _p(en: 'Downloading...', fr: 'Téléchargement...', es: 'Descargando...');
   String get skipUpdate      => _p(en: 'Skip this version', fr: 'Ignorer cette version', es: 'Omitir esta versión');
   String get checkUpdates    => _p(en: 'Check for updates at startup', fr: 'Chercher les MAJ au démarrage', es: 'Buscar actualizaciones al inicio');
+
+  // Version / About
+  String get currentVersion  => _p(en: 'Version', fr: 'Version', es: 'Versión');
+  String get whatsNew        => _p(en: "What's new", fr: 'Nouveautés', es: 'Novedades');
+  String get seeChangelog    => _p(en: 'See changelog', fr: 'Voir le changelog', es: 'Ver changelog');
 }
 
 

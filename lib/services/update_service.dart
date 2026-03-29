@@ -25,8 +25,20 @@ class UpdateService {
   static const String _prefCheckAuto = 'update_check_auto';
 
   final SharedPreferences _prefs;
-  
-  UpdateService(this._prefs);
+
+  // Cached info from the last GitHub fetch (any version, not just newer ones)
+  String? latestKnownVersion;
+  String? latestKnownNotes;
+  String? currentVersion;
+
+  UpdateService(this._prefs) {
+    _loadCurrentVersion();
+  }
+
+  Future<void> _loadCurrentVersion() async {
+    final info = await PackageInfo.fromPlatform();
+    currentVersion = info.version;
+  }
 
   bool get checkAutoUpdates => _prefs.getBool(_prefCheckAuto) ?? true;
   
@@ -79,6 +91,10 @@ class UpdateService {
         if (latestVersion.isEmpty || releaseUrl.isEmpty) {
           return null;
         }
+
+        // Always cache latest release info (used in settings "About" section)
+        latestKnownVersion = latestVersion;
+        latestKnownNotes = notes;
 
         if (_isNewer(currentVersion, latestVersion)) {
           if (latestVersion != skippedVersion) {

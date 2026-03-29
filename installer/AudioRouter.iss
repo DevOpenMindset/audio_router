@@ -1,5 +1,5 @@
 #define MyAppName "AudioRouter"
-#define MyAppVersion "1.2.24"
+#define MyAppVersion "1.2.25"
 #define MyAppPublisher "AudioRouter"
 #define MyAppURL "https://audiorouter.app"
 #define MyAppExeName "audio_router.exe"
