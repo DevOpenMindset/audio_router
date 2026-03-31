@@ -56,9 +56,3 @@ set_target_properties(audio_backend PROPERTIES
     # Hide all symbols except AUDIO_API exports
     C_VISIBILITY_PRESET hidden
 )
-
-# Install into Flutter bundle lib directory
-install(TARGETS audio_backend
-    LIBRARY DESTINATION "${CMAKE_INSTALL_PREFIX}/lib"
-    COMPONENT Runtime
-)
