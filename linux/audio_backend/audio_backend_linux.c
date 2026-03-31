@@ -18,6 +18,15 @@
 #include <sys/stat.h>
 #include <pthread.h>
 
+#ifdef HAVE_GDK_PIXBUF
+#include <gdk-pixbuf/gdk-pixbuf.h>
+#endif
+
+#ifdef HAVE_X11
+#include <X11/Xlib.h>
+#include <X11/keysym.h>
+#endif
+
 // ─── Backend selection ───────────────────────────────────────
 
 typedef enum {
@@ -297,15 +306,83 @@ static int find_desktop_icon(uint32_t pid, char* icon_name, size_t icon_name_len
 
 AUDIO_API int32_t audio_get_app_icon(uint32_t pid, uint8_t* rgba_buf, int32_t buf_size,
                                      int32_t* out_width, int32_t* out_height) {
-    // For now, return -1 (not implemented)
-    // Full implementation would:
-    // 1. find_desktop_icon() to get icon name
-    // 2. Search /usr/share/icons/{theme}/32x32/apps/{name}.png
-    // 3. Load PNG with stb_image and write to rgba_buf
+    if (!out_width || !out_height) return -1;
+    *out_width = 0; *out_height = 0;
+
+#ifndef HAVE_GDK_PIXBUF
     (void)pid; (void)rgba_buf; (void)buf_size;
-    if (out_width) *out_width = 0;
-    if (out_height) *out_height = 0;
     return -1;
+#else
+    // Step 1: get icon name from .desktop file
+    char icon_name[256] = {0};
+    if (find_desktop_icon(pid, icon_name, sizeof(icon_name)) != 0) {
+        // Fallback: use binary name as icon name
+        char link[64];
+        char exe[PATH_MAX];
+        snprintf(link, sizeof(link), "/proc/%u/exe", pid);
+        ssize_t n = readlink(link, exe, sizeof(exe) - 1);
+        if (n <= 0) return -1;
+        exe[n] = '\0';
+        const char *bn = strrchr(exe, '/');
+        snprintf(icon_name, sizeof(icon_name), "%s", bn ? bn + 1 : exe);
+    }
+
+    // Step 2: resolve icon path — full path, or search XDG hierarchy
+    char icon_path[PATH_MAX] = {0};
+    if (icon_name[0] == '/') {
+        strncpy(icon_path, icon_name, sizeof(icon_path) - 1);
+    } else {
+        // sizes and themes to try, in preference order
+        const char *sizes[] = {"32x32","48x48","64x64","128x128","256x256", NULL};
+        const char *bases[] = {
+            "/usr/share/icons/hicolor",
+            "/usr/share/icons/Adwaita",
+            "/usr/share/icons",
+            NULL
+        };
+        for (int b = 0; bases[b] && !icon_path[0]; b++) {
+            for (int s = 0; sizes[s] && !icon_path[0]; s++) {
+                char tmp[PATH_MAX];
+                snprintf(tmp, sizeof(tmp), "%s/%s/apps/%s.png",
+                         bases[b], sizes[s], icon_name);
+                if (access(tmp, R_OK) == 0) strncpy(icon_path, tmp, sizeof(icon_path)-1);
+            }
+        }
+        // pixmaps fallback
+        if (!icon_path[0]) {
+            char tmp[PATH_MAX];
+            snprintf(tmp, sizeof(tmp), "/usr/share/pixmaps/%s.png", icon_name);
+            if (access(tmp, R_OK) == 0) strncpy(icon_path, tmp, sizeof(icon_path)-1);
+        }
+    }
+    if (!icon_path[0]) return -1;
+
+    // Step 3: load + scale to 32×32 with GdkPixbuf
+    GError *err = NULL;
+    GdkPixbuf *pb = gdk_pixbuf_new_from_file_at_scale(icon_path, 32, 32, FALSE, &err);
+    if (!pb) { if (err) g_error_free(err); return -1; }
+
+    int W = gdk_pixbuf_get_width(pb);
+    int H = gdk_pixbuf_get_height(pb);
+    *out_width  = W;
+    *out_height = H;
+
+    int needed = W * H * 4;
+    if (!rgba_buf || buf_size < needed) { g_object_unref(pb); return needed; }
+
+    // Ensure RGBA (add alpha channel if the source is RGB-only)
+    GdkPixbuf *rgba = gdk_pixbuf_add_alpha(pb, FALSE, 0, 0, 0);
+    g_object_unref(pb);
+    if (!rgba) return -1;
+
+    const guchar *pixels = gdk_pixbuf_get_pixels(rgba);
+    int rowstride = gdk_pixbuf_get_rowstride(rgba);
+    for (int y = 0; y < H; y++)
+        memcpy(rgba_buf + y * W * 4, pixels + y * rowstride, (size_t)(W * 4));
+
+    g_object_unref(rgba);
+    return 0;
+#endif
 }
 
 // ─── Loopback Mirror ─────────────────────────────────────────
@@ -563,22 +640,157 @@ AUDIO_API uint32_t audio_get_accent_color(void) {
     return 0xFF3584E4; // GNOME default blue
 }
 
-// ─── Global Hotkeys ──────────────────────────────────────────
+// ─── Global Hotkeys (X11 XGrabKey) ───────────────────────────
 
-// TODO: Implement X11 XGrabKey + Wayland D-Bus portal
-// For now, stub implementations
+#ifdef HAVE_X11
+
+// Suppress X11 grab errors (e.g. key already grabbed by another app)
+static int hk_x11_error(Display *d, XErrorEvent *e) {
+    (void)d; (void)e; return 0;
+}
+
+typedef struct { int32_t id; KeyCode kc; unsigned int mods; } HKEntry;
+
+static Display       *g_hk_display = NULL;
+static Window         g_hk_root    = None;
+static HKEntry        g_hk_entries[16];
+static int            g_hk_count   = 0;
+static pthread_t      g_hk_thread;
+static volatile int   g_hk_running = 0;
+
+// Circular queue for triggered hotkeys
+static int32_t        g_hk_queue[8];
+static int            g_hk_qhead = 0, g_hk_qtail = 0;
+static pthread_mutex_t g_hk_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+// Windows VK → X11 KeySym
+static KeySym vk_to_keysym(uint32_t vk) {
+    if (vk >= 0x30 && vk <= 0x39) return (KeySym)(XK_0 + (vk - 0x30));  // 0-9
+    if (vk >= 0x41 && vk <= 0x5A) return (KeySym)(XK_a + (vk - 0x41));  // a-z
+    if (vk >= 0x70 && vk <= 0x7B) return (KeySym)(XK_F1 + (vk - 0x70)); // F1-F12
+    switch (vk) {
+        case 0x20: return XK_space;
+        case 0x08: return XK_BackSpace;
+        case 0x0D: return XK_Return;
+        case 0x1B: return XK_Escape;
+        default:   return (KeySym)vk;
+    }
+}
+
+// Windows modifier flags → X11 masks
+static unsigned int win_to_x11_mods(uint32_t m) {
+    unsigned int x = 0;
+    if (m & 1) x |= Mod1Mask;    // Alt
+    if (m & 2) x |= ControlMask; // Ctrl
+    if (m & 4) x |= ShiftMask;   // Shift
+    if (m & 8) x |= Mod4Mask;    // Super/Win
+    return x;
+}
+
+static void *hk_thread_fn(void *arg) {
+    (void)arg;
+    XEvent ev;
+    while (g_hk_running) {
+        while (XPending(g_hk_display) > 0) {
+            XNextEvent(g_hk_display, &ev);
+            if (ev.type == KeyPress) {
+                unsigned int state = ev.xkey.state &
+                    (ControlMask | Mod1Mask | ShiftMask | Mod4Mask);
+                pthread_mutex_lock(&g_hk_mutex);
+                for (int i = 0; i < g_hk_count; i++) {
+                    if (g_hk_entries[i].kc   == ev.xkey.keycode &&
+                        g_hk_entries[i].mods == state) {
+                        int next = (g_hk_qtail + 1) % 8;
+                        if (next != g_hk_qhead) {
+                            g_hk_queue[g_hk_qtail] = g_hk_entries[i].id;
+                            g_hk_qtail = next;
+                        }
+                        break;
+                    }
+                }
+                pthread_mutex_unlock(&g_hk_mutex);
+            }
+        }
+        usleep(10000); // 10 ms poll
+    }
+    return NULL;
+}
+
+static int hk_init_x11(void) {
+    if (g_hk_display) return 0;
+    g_hk_display = XOpenDisplay(NULL);
+    if (!g_hk_display) return -1;
+    g_hk_root = DefaultRootWindow(g_hk_display);
+    XSetErrorHandler(hk_x11_error);
+    g_hk_running = 1;
+    return pthread_create(&g_hk_thread, NULL, hk_thread_fn, NULL);
+}
+
+#endif // HAVE_X11
 
 AUDIO_API int32_t audio_register_hotkey(int32_t id, uint32_t modifiers, uint32_t vk) {
+#ifdef HAVE_X11
+    if (hk_init_x11() != 0) return -1;
+    if (g_hk_count >= 16) return -1;
+
+    KeySym sym = vk_to_keysym(vk);
+    KeyCode kc  = XKeysymToKeycode(g_hk_display, sym);
+    if (!kc) return -1;
+
+    unsigned int xmods = win_to_x11_mods(modifiers);
+
+    // Grab with and without CapsLock / NumLock so those don't block the hotkey
+    unsigned int extra[] = {0, LockMask, Mod2Mask, LockMask | Mod2Mask};
+    for (int i = 0; i < 4; i++)
+        XGrabKey(g_hk_display, kc, xmods | extra[i],
+                 g_hk_root, True, GrabModeAsync, GrabModeAsync);
+    XFlush(g_hk_display);
+
+    pthread_mutex_lock(&g_hk_mutex);
+    g_hk_entries[g_hk_count++] = (HKEntry){id, kc, xmods};
+    pthread_mutex_unlock(&g_hk_mutex);
+    return 0;
+#else
     (void)id; (void)modifiers; (void)vk;
-    // TODO: X11 XGrabKey or Wayland portal
     return -1;
+#endif
 }
 
 AUDIO_API int32_t audio_unregister_hotkey(int32_t id) {
+#ifdef HAVE_X11
+    if (!g_hk_display) return -1;
+    pthread_mutex_lock(&g_hk_mutex);
+    for (int i = 0; i < g_hk_count; i++) {
+        if (g_hk_entries[i].id == id) {
+            unsigned int extra[] = {0, LockMask, Mod2Mask, LockMask | Mod2Mask};
+            for (int j = 0; j < 4; j++)
+                XUngrabKey(g_hk_display, g_hk_entries[i].kc,
+                            g_hk_entries[i].mods | extra[j], g_hk_root);
+            g_hk_entries[i] = g_hk_entries[--g_hk_count];
+            XFlush(g_hk_display);
+            break;
+        }
+    }
+    pthread_mutex_unlock(&g_hk_mutex);
+    return 0;
+#else
     (void)id;
     return -1;
+#endif
 }
 
 AUDIO_API int32_t audio_poll_hotkey(void) {
-    return 0; // No hotkey pressed
+#ifdef HAVE_X11
+    pthread_mutex_lock(&g_hk_mutex);
+    if (g_hk_qhead == g_hk_qtail) {
+        pthread_mutex_unlock(&g_hk_mutex);
+        return 0;
+    }
+    int32_t hid = g_hk_queue[g_hk_qhead];
+    g_hk_qhead = (g_hk_qhead + 1) % 8;
+    pthread_mutex_unlock(&g_hk_mutex);
+    return hid;
+#else
+    return 0;
+#endif
 }

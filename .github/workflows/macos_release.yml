@@ -1,4 +1,4 @@
-name: Build & Release (Windows)
+name: Build & Release (macOS)
 
 on:
   push:
@@ -6,8 +6,8 @@ on:
       - 'v*'
 
 jobs:
-  build-windows:
-    runs-on: windows-latest
+  build-macos:
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -17,59 +17,59 @@ jobs:
           channel: stable
 
       - name: Update pubspec version from tag
-        shell: bash
         run: |
           VERSION="${{ github.ref_name }}"
           VERSION="${VERSION#v}"
-          sed -i "s/^version: .*/version: ${VERSION}+1/" pubspec.yaml
+          sed -i '' "s/^version: .*/version: ${VERSION}+1/" pubspec.yaml
 
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Build Windows release
-        run: flutter build windows --release
+      - name: Build macOS release
+        run: flutter build macos --release
 
-      - name: Install InnoSetup
-        run: choco install innosetup -y
-
-      - name: Update InnoSetup version from tag
-        shell: pwsh
+      - name: Create DMG
         run: |
-          $version = "${{ github.ref_name }}".TrimStart('v')
-          (Get-Content installer/AudioRouter.iss) -replace '#define MyAppVersion ".*"', "#define MyAppVersion `"$version`"" | Set-Content installer/AudioRouter.iss
+          TAG="${{ github.ref_name }}"
+          VERSION="${TAG#v}"
+          APP="build/macos/Build/Products/Release/AudioRouter.app"
+          DMG="AudioRouter-${VERSION}.dmg"
 
-      - name: Build Installer
-        run: iscc installer/AudioRouter.iss
+          # Create a temporary directory for the DMG layout
+          STAGING="dmg_staging"
+          mkdir -p "$STAGING"
+          cp -r "$APP" "$STAGING/"
+          ln -s /Applications "$STAGING/Applications"
+
+          hdiutil create \
+            -volname "AudioRouter ${VERSION}" \
+            -srcfolder "$STAGING" \
+            -ov -format UDZO \
+            "$DMG"
 
       - name: Extract changelog notes
-        shell: bash
         run: |
           TAG="${{ github.ref_name }}"
           VERSION="${TAG#v}"
-          # Extract the section for this version from CHANGELOG.md
           NOTES=$(awk "/^## \[${VERSION}\]/{found=1; next} found && /^## \[/{exit} found{print}" CHANGELOG.md)
-          if [ -z "$NOTES" ]; then
-            NOTES="Release ${TAG}"
-          fi
-          # Write to file to preserve newlines
+          if [ -z "$NOTES" ]; then NOTES="Release ${TAG}"; fi
           echo "$NOTES" > release_notes.txt
 
-      - name: Upload installer to release
-        shell: bash
+      - name: Upload DMG to release
         run: |
           TAG="${{ github.ref_name }}"
           VERSION="${TAG#v}"
-          EXE="installer/output/AudioRouter-Setup-${VERSION}.exe"
+          DMG="AudioRouter-${VERSION}.dmg"
           NOTES=$(cat release_notes.txt)
           RELEASE_REPO="DevOpenMindset/audio_router_releases"
 
           if [ -n "${{ secrets.RELEASES_TOKEN }}" ]; then
             export GH_TOKEN="${{ secrets.RELEASES_TOKEN }}"
             if gh release view "$TAG" --repo "$RELEASE_REPO" &>/dev/null; then
-              gh release upload "$TAG" "$EXE" --repo "$RELEASE_REPO" --clobber
+              gh release upload "$TAG" "$DMG" --repo "$RELEASE_REPO" --clobber
               gh release edit "$TAG" --repo "$RELEASE_REPO" --notes "$NOTES" || true
             else
-              gh release create "$TAG" "$EXE" \
+              gh release create "$TAG" "$DMG" \
                 --repo "$RELEASE_REPO" \
                 --title "Release $TAG" \
                 --notes "$NOTES"
@@ -77,10 +77,10 @@ jobs:
           else
             export GH_TOKEN="${{ github.token }}"
             if gh release view "$TAG" &>/dev/null; then
-              gh release upload "$TAG" "$EXE" --clobber
+              gh release upload "$TAG" "$DMG" --clobber
               gh release edit "$TAG" --notes "$NOTES" || true
             else
-              gh release create "$TAG" "$EXE" \
+              gh release create "$TAG" "$DMG" \
                 --title "Release $TAG" \
                 --notes "$NOTES"
             fi

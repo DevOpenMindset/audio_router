@@ -6,6 +6,8 @@ find_package(PkgConfig REQUIRED)
 
 pkg_check_modules(PIPEWIRE libpipewire-0.3)
 pkg_check_modules(PULSE libpulse)
+pkg_check_modules(GDK_PIXBUF gdk-pixbuf-2.0)
+pkg_check_modules(X11 x11)
 
 if(NOT PIPEWIRE_FOUND AND NOT PULSE_FOUND)
     message(FATAL_ERROR "Neither PipeWire nor PulseAudio development libraries found. "
@@ -47,6 +49,26 @@ endif()
 
 # Common dependencies
 target_link_libraries(audio_backend dl pthread)
+
+# GdkPixbuf for app icon loading (optional — graceful no-op if missing)
+if(GDK_PIXBUF_FOUND)
+    target_compile_definitions(audio_backend PRIVATE HAVE_GDK_PIXBUF)
+    target_include_directories(audio_backend PRIVATE ${GDK_PIXBUF_INCLUDE_DIRS})
+    target_link_libraries(audio_backend ${GDK_PIXBUF_LIBRARIES})
+    message(STATUS "AudioRouter: GdkPixbuf ENABLED — app icons will work")
+else()
+    message(STATUS "AudioRouter: GdkPixbuf NOT FOUND — app icons disabled")
+endif()
+
+# X11 for global hotkeys (optional — graceful no-op on pure Wayland)
+if(X11_FOUND)
+    target_compile_definitions(audio_backend PRIVATE HAVE_X11)
+    target_include_directories(audio_backend PRIVATE ${X11_INCLUDE_DIRS})
+    target_link_libraries(audio_backend ${X11_LIBRARIES})
+    message(STATUS "AudioRouter: X11 ENABLED — global hotkeys will work")
+else()
+    message(STATUS "AudioRouter: X11 NOT FOUND — hotkeys disabled")
+endif()
 
 # C11 standard
 set_target_properties(audio_backend PROPERTIES

@@ -17,6 +17,8 @@ jobs:
           sudo apt-get install -y \
             clang cmake ninja-build pkg-config \
             libgtk-3-dev \
+            libgdk-pixbuf2.0-dev \
+            libx11-dev \
             libpipewire-0.3-dev \
             libpulse-dev \
             libappindicator3-dev \
@@ -196,6 +198,7 @@ jobs:
             export GH_TOKEN="${{ github.token }}"
             if gh release view "$TAG" &>/dev/null; then
               gh release upload "$TAG" $FILES --clobber
+              gh release edit "$TAG" --notes "$NOTES" || true
             else
               gh release create "$TAG" $FILES \
                 --title "Release $TAG" \

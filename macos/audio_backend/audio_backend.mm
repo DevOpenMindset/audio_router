@@ -611,6 +611,96 @@ AUDIO_API int32_t audio_set_device_volume(const uint16_t *device_id, float volum
     return -1;
 }
 
+// ─── Device Balance ──────────────────────────────────────────
+
+AUDIO_API float audio_get_device_balance(const uint16_t *device_id) {
+    AudioObjectID id = DeviceFromUTF16(device_id);
+    if (id == kAudioObjectUnknown) return 0.0f;
+
+    // Try stereo pan scalar first (single knob, -1..1 remapped from 0..1)
+    AudioObjectPropertyAddress panAddr = {
+        kAudioDevicePropertyStereoPanChannels,
+        kAudioDevicePropertyScopeOutput,
+        kAudioObjectPropertyElementMain
+    };
+    UInt32 panChans[2] = {0, 0};
+    UInt32 sz = sizeof(panChans);
+    if (AudioObjectGetPropertyData(id, &panAddr, 0, nullptr, &sz, panChans) == kAudioHardwareNoError) {
+        AudioObjectPropertyAddress sp = {
+            kAudioDevicePropertyStereoPan,
+            kAudioDevicePropertyScopeOutput,
+            kAudioObjectPropertyElementMain
+        };
+        Float32 pan = 0.5f;
+        sz = sizeof(pan);
+        AudioObjectGetPropertyData(id, &sp, 0, nullptr, &sz, &pan);
+        return pan * 2.0f - 1.0f; // 0..1 → -1..1
+    }
+
+    // Fallback: per-channel volumes (ch 1 = left, ch 2 = right)
+    Float32 left = 1.0f, right = 1.0f;
+    AudioObjectPropertyAddress addrL = {kAudioDevicePropertyVolumeScalar, kAudioDevicePropertyScopeOutput, 1};
+    AudioObjectPropertyAddress addrR = {kAudioDevicePropertyVolumeScalar, kAudioDevicePropertyScopeOutput, 2};
+    sz = sizeof(Float32);
+    AudioObjectGetPropertyData(id, &addrL, 0, nullptr, &sz, &left);
+    AudioObjectGetPropertyData(id, &addrR, 0, nullptr, &sz, &right);
+    float sum = left + right;
+    if (sum < 0.001f) return 0.0f;
+    return (right - left) / sum;
+}
+
+AUDIO_API int32_t audio_set_device_balance(const uint16_t *device_id, float balance) {
+    AudioObjectID id = DeviceFromUTF16(device_id);
+    if (id == kAudioObjectUnknown) return -1;
+    balance = std::max(-1.0f, std::min(1.0f, balance));
+
+    // Try stereo pan scalar (0..1)
+    AudioObjectPropertyAddress panAddr = {
+        kAudioDevicePropertyStereoPan,
+        kAudioDevicePropertyScopeOutput,
+        kAudioObjectPropertyElementMain
+    };
+    Boolean settable = false;
+    if (AudioObjectIsPropertySettable(id, &panAddr, &settable) == kAudioHardwareNoError && settable) {
+        Float32 pan = (balance + 1.0f) / 2.0f;
+        if (AudioObjectSetPropertyData(id, &panAddr, 0, nullptr, sizeof(pan), &pan) == kAudioHardwareNoError)
+            return 0;
+    }
+
+    // Fallback: per-channel volume scaling
+    Float32 master = GetDeviceVolumeForId(id);
+    if (master < 0.0f) master = 1.0f;
+    Float32 left  = (balance <= 0.0f) ? master : master * (1.0f - balance);
+    Float32 right = (balance >= 0.0f) ? master : master * (1.0f + balance);
+
+    AudioObjectPropertyAddress addrL = {kAudioDevicePropertyVolumeScalar, kAudioDevicePropertyScopeOutput, 1};
+    AudioObjectPropertyAddress addrR = {kAudioDevicePropertyVolumeScalar, kAudioDevicePropertyScopeOutput, 2};
+    Boolean setL = false, setR = false;
+    AudioObjectIsPropertySettable(id, &addrL, &setL);
+    AudioObjectIsPropertySettable(id, &addrR, &setR);
+    if (setL && setR) {
+        AudioObjectSetPropertyData(id, &addrL, 0, nullptr, sizeof(Float32), &left);
+        AudioObjectSetPropertyData(id, &addrR, 0, nullptr, sizeof(Float32), &right);
+        return 0;
+    }
+    return -1;
+}
+
+// ─── Set Default Output Device ───────────────────────────────
+
+AUDIO_API int32_t audio_set_default_device(const uint16_t *device_id) {
+    AudioObjectID id = DeviceFromUTF16(device_id);
+    if (id == kAudioObjectUnknown) return -1;
+    AudioObjectPropertyAddress addr = {
+        kAudioHardwarePropertyDefaultOutputDevice,
+        kAudioObjectPropertyScopeGlobal,
+        kAudioObjectPropertyElementMain
+    };
+    OSStatus st = AudioObjectSetPropertyData(
+        kAudioObjectSystemObject, &addr, 0, nullptr, sizeof(AudioObjectID), &id);
+    return (st == kAudioHardwareNoError) ? 0 : (int32_t)st;
+}
+
 // ─── App Icon ───────────────────────────────────────────────
 
 AUDIO_API int32_t audio_get_app_icon(uint32_t pid, uint8_t *rgba_buf, int32_t buf_size,
