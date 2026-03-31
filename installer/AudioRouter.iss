@@ -61,10 +61,10 @@ Name: "{userdesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: de
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "{#MyAppName}"; ValueData: """{app}\{#MyAppExeName}"""; Flags: uninsdeletevalue; Tasks: startupicon
 
 [Run]
-Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#MyAppName}}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#MyAppName}}"; Flags: nowait postinstall runasoriginaluser
 
 [Code]
-// Kill running instance before install/upgrade, and relaunch after (silent mode only)
+// Kill running instance before install/upgrade so files can be replaced
 procedure CurStepChanged(CurStep: TSetupStep);
 var
   ResultCode: Integer;
@@ -73,14 +73,6 @@ begin
     Exec('taskkill.exe', '/F /IM {#MyAppExeName}', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
     // Give Windows time to fully release file handles
     Sleep(800);
-  end;
-  // In silent/very-silent mode the [Run] postinstall entry is skipped.
-  // Use Exec (direct process launch, not Shell) — more reliable from elevated context.
-  if CurStep = ssDone then begin
-    if WizardSilent then begin
-      Sleep(1200);
-      Exec(ExpandConstant('{app}\{#MyAppExeName}'), '', ExpandConstant('{app}'), SW_SHOWNORMAL, ewNoWait, ResultCode);
-    end;
   end;
 end;
 
