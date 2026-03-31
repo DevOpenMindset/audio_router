@@ -1155,6 +1155,142 @@ AUDIO_API void audio_stop_all_mirrors(void) {
     g_mirrors.clear();
 }
 
+// ─── Set Default Device (IPolicyConfig) ─────────────────────
+
+// IPolicyConfig COM interface — undocumented but stable since Windows 7.
+// Used by EarTrumpet, SoundSwitch, and many other audio tools.
+MIDL_INTERFACE("f8679f50-850a-41cf-9c72-430f290290c8")
+IPolicyConfig : public IUnknown {
+public:
+    virtual HRESULT STDMETHODCALLTYPE GetMixFormat(PCWSTR, WAVEFORMATEX**) = 0;
+    virtual HRESULT STDMETHODCALLTYPE GetDeviceFormat(PCWSTR, INT, WAVEFORMATEX**) = 0;
+    virtual HRESULT STDMETHODCALLTYPE ResetDeviceFormat(PCWSTR) = 0;
+    virtual HRESULT STDMETHODCALLTYPE SetDeviceFormat(PCWSTR, WAVEFORMATEX*, WAVEFORMATEX*) = 0;
+    virtual HRESULT STDMETHODCALLTYPE GetProcessingPeriod(PCWSTR, INT, PINT64, PINT64) = 0;
+    virtual HRESULT STDMETHODCALLTYPE SetProcessingPeriod(PCWSTR, PINT64) = 0;
+    virtual HRESULT STDMETHODCALLTYPE GetShareMode(PCWSTR, struct DeviceShareMode*) = 0;
+    virtual HRESULT STDMETHODCALLTYPE SetShareMode(PCWSTR, struct DeviceShareMode*) = 0;
+    virtual HRESULT STDMETHODCALLTYPE GetPropertyValue(PCWSTR, const PROPERTYKEY&, PROPVARIANT*) = 0;
+    virtual HRESULT STDMETHODCALLTYPE SetPropertyValue(PCWSTR, const PROPERTYKEY&, PROPVARIANT*) = 0;
+    virtual HRESULT STDMETHODCALLTYPE SetDefaultEndpoint(PCWSTR deviceId, ERole role) = 0;
+    virtual HRESULT STDMETHODCALLTYPE SetEndpointVisibility(PCWSTR, INT) = 0;
+};
+
+static const CLSID CLSID_PolicyConfigClient = {
+    0x870af99c, 0x171d, 0x4f9e, {0xaf, 0x0d, 0xe6, 0x3d, 0xf4, 0x0c, 0x2b, 0xc9}
+};
+
+AUDIO_API int32_t audio_set_default_device(const wchar_t* device_id) {
+    if (!device_id || device_id[0] == L'\0') return E_INVALIDARG;
+
+    IPolicyConfig* pPolicyConfig = nullptr;
+    HRESULT hr = CoCreateInstance(
+        CLSID_PolicyConfigClient, nullptr, CLSCTX_ALL,
+        __uuidof(IPolicyConfig), reinterpret_cast<void**>(&pPolicyConfig));
+    if (FAILED(hr) || !pPolicyConfig) return hr;
+
+    // Set as default for all roles (console, multimedia, communications)
+    hr = pPolicyConfig->SetDefaultEndpoint(device_id, eConsole);
+    pPolicyConfig->SetDefaultEndpoint(device_id, eMultimedia);
+    pPolicyConfig->SetDefaultEndpoint(device_id, eCommunications);
+    pPolicyConfig->Release();
+    return hr;
+}
+
+// ─── Device Balance (Stereo L/R) ────────────────────────────
+
+AUDIO_API float audio_get_device_balance(const wchar_t* device_id) {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    IAudioEndpointVolume* pVol = GetEndpointVolumeForDevice(device_id);
+    if (!pVol) return 0.0f;
+
+    UINT channelCount = 0;
+    pVol->GetChannelCount(&channelCount);
+    if (channelCount < 2) {
+        pVol->Release();
+        return 0.0f; // mono — no balance
+    }
+
+    float left = 1.0f, right = 1.0f;
+    pVol->GetChannelVolumeLevelScalar(0, &left);
+    pVol->GetChannelVolumeLevelScalar(1, &right);
+    pVol->Release();
+
+    // Convert L/R volumes to -1..+1 balance
+    // If left==right → 0, if left==0 → +1, if right==0 → -1
+    float sum = left + right;
+    if (sum < 0.001f) return 0.0f;
+    return (right - left) / sum;
+}
+
+AUDIO_API int32_t audio_set_device_balance(const wchar_t* device_id, float balance) {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    IAudioEndpointVolume* pVol = GetEndpointVolumeForDevice(device_id);
+    if (!pVol) return E_FAIL;
+
+    UINT channelCount = 0;
+    pVol->GetChannelCount(&channelCount);
+    if (channelCount < 2) {
+        pVol->Release();
+        return 0; // mono — no-op
+    }
+
+    if (balance < -1.0f) balance = -1.0f;
+    if (balance > 1.0f) balance = 1.0f;
+
+    // Get current master volume to preserve overall loudness
+    float master = 1.0f;
+    pVol->GetMasterVolumeLevelScalar(&master);
+
+    float left, right;
+    if (balance <= 0.0f) {
+        // Pan left: right is reduced
+        left = master;
+        right = master * (1.0f + balance);
+    } else {
+        // Pan right: left is reduced
+        left = master * (1.0f - balance);
+        right = master;
+    }
+
+    pVol->SetChannelVolumeLevelScalar(0, left, nullptr);
+    pVol->SetChannelVolumeLevelScalar(1, right, nullptr);
+    pVol->Release();
+    return 0;
+}
+
+// ─── OS Sound Settings ──────────────────────────────────────
+
+AUDIO_API int32_t audio_open_sound_settings(void) {
+    // Open Windows 11/10 Sound Settings
+    HINSTANCE result = ShellExecuteW(nullptr, L"open",
+        L"ms-settings:sound", nullptr, nullptr, SW_SHOWNORMAL);
+    return (reinterpret_cast<intptr_t>(result) > 32) ? 0 : E_FAIL;
+}
+
+// ─── OS Accent Color ────────────────────────────────────────
+
+AUDIO_API uint32_t audio_get_accent_color(void) {
+    HKEY hKey;
+    LONG result = RegOpenKeyExW(HKEY_CURRENT_USER,
+        L"Software\\Microsoft\\Windows\\DWM", 0, KEY_QUERY_VALUE, &hKey);
+    if (result != ERROR_SUCCESS) return 0;
+
+    DWORD color = 0;
+    DWORD size = sizeof(color);
+    result = RegQueryValueExW(hKey, L"AccentColor", nullptr, nullptr,
+                               reinterpret_cast<BYTE*>(&color), &size);
+    RegCloseKey(hKey);
+    if (result != ERROR_SUCCESS) return 0;
+
+    // Registry stores ABGR, convert to ARGB
+    uint8_t a = (color >> 24) & 0xFF;
+    uint8_t b = (color >> 16) & 0xFF;
+    uint8_t g = (color >> 8) & 0xFF;
+    uint8_t r = color & 0xFF;
+    return (a << 24) | (r << 16) | (g << 8) | b;
+}
+
 // ─── DLL Entry Point ─────────────────────────────────────────
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID lpReserved) {

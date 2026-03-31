@@ -122,7 +122,27 @@ class SettingsScreen extends StatelessWidget {
             onChanged: (l) => themeService.setLocale(l),
           ),
         ),
+        Consumer<ThemeService>(
+          builder: (context, themeService, _) {
+            final svc = context.read<AudioService>();
+            final osAccent = svc.getAccentColor();
+            final hasAccent = osAccent != 0;
+            return _SettingToggle(
+              label: 'Sync OS accent color',
+              description: hasAccent ? 'Use system accent color (detected)' : 'System accent not available',
+              value: themeService.useOSAccent,
+              onChanged: (val) {
+                if (val && hasAccent) {
+                  themeService.setAccentColor(Color(osAccent));
+                }
+                themeService.setUseOSAccent(val);
+              },
+            );
+          },
+        ),
         Container(height: 1, color: AppColors.border),
+        const _HotkeyInfo(),
+        const SizedBox(height: 8),
         _SettingAction(
           label: l10n.supportProject,
           description: l10n.donateCoffee,
@@ -480,7 +500,7 @@ class _UIStylePicker extends StatelessWidget {
               Expanded(
                 child: _StyleOption(
                   label: 'Windows 11',
-                  emoji: '🪟',
+                  icon: CustomPaint(size: const Size(15, 15), painter: _WindowsLogoPainter()),
                   value: 'win',
                   selected: current == 'win',
                   onTap: () => onChanged('win'),
@@ -490,10 +510,20 @@ class _UIStylePicker extends StatelessWidget {
               Expanded(
                 child: _StyleOption(
                   label: 'macOS',
-                  emoji: '🍎',
+                  icon: CustomPaint(size: const Size(13, 15), painter: _AppleLogoPainter()),
                   value: 'mac',
                   selected: current == 'mac',
                   onTap: () => onChanged('mac'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _StyleOption(
+                  label: 'Linux',
+                  icon: CustomPaint(size: const Size(14, 16), painter: _TuxLogoPainter()),
+                  value: 'linux',
+                  selected: current == 'linux',
+                  onTap: () => onChanged('linux'),
                 ),
               ),
             ],
@@ -506,14 +536,14 @@ class _UIStylePicker extends StatelessWidget {
 
 class _StyleOption extends StatefulWidget {
   final String label;
-  final String emoji;
+  final Widget icon;
   final String value;
   final bool selected;
   final VoidCallback onTap;
 
   const _StyleOption({
     required this.label,
-    required this.emoji,
+    required this.icon,
     required this.value,
     required this.selected,
     required this.onTap,
@@ -565,7 +595,7 @@ class _StyleOptionState extends State<_StyleOption> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text(widget.emoji, style: const TextStyle(fontSize: 14)),
+              widget.icon,
               const SizedBox(width: 6),
               Text(
                 widget.label,
@@ -883,3 +913,177 @@ class _SettingActionState extends State<_SettingAction> {
   }
 }
 
+// ─── OS Logo Painters ───────────────────────────────────────────
+
+/// Windows 11 four-pane logo.
+class _WindowsLogoPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = const Color(0xFF00A4EF);
+    final gap = size.width * 0.08;
+    final half = (size.width - gap) / 2;
+    canvas.drawRRect(RRect.fromRectAndRadius(
+      Rect.fromLTWH(0, 0, half, half), const Radius.circular(1)), paint);
+    canvas.drawRRect(RRect.fromRectAndRadius(
+      Rect.fromLTWH(half + gap, 0, half, half), const Radius.circular(1)), paint);
+    canvas.drawRRect(RRect.fromRectAndRadius(
+      Rect.fromLTWH(0, half + gap, half, half), const Radius.circular(1)), paint);
+    canvas.drawRRect(RRect.fromRectAndRadius(
+      Rect.fromLTWH(half + gap, half + gap, half, half), const Radius.circular(1)), paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+/// Apple logo (simplified silhouette).
+class _AppleLogoPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = AppColors.textSecondary
+      ..style = PaintingStyle.fill;
+    final w = size.width;
+    final h = size.height;
+    final path = Path()
+      ..moveTo(w * 0.52, h * 0.0)
+      ..cubicTo(w * 0.52, h * 0.0, w * 0.78, h * 0.0, w * 0.72, h * 0.14)
+      ..cubicTo(w * 0.66, h * 0.08, w * 0.54, h * 0.06, w * 0.52, h * 0.0)
+      ..close()
+      ..moveTo(w * 0.50, h * 0.22)
+      ..cubicTo(w * 0.36, h * 0.22, w * 0.28, h * 0.16, w * 0.18, h * 0.16)
+      ..cubicTo(w * 0.04, h * 0.16, w * -0.02, h * 0.34, w * 0.01, h * 0.52)
+      ..cubicTo(w * 0.04, h * 0.72, w * 0.18, h * 1.0, w * 0.32, h * 1.0)
+      ..cubicTo(w * 0.38, h * 1.0, w * 0.44, h * 0.94, w * 0.50, h * 0.94)
+      ..cubicTo(w * 0.56, h * 0.94, w * 0.62, h * 1.0, w * 0.68, h * 1.0)
+      ..cubicTo(w * 0.82, h * 1.0, w * 0.96, h * 0.72, w * 0.99, h * 0.52)
+      ..cubicTo(w * 1.02, h * 0.34, w * 0.96, h * 0.16, w * 0.82, h * 0.16)
+      ..cubicTo(w * 0.72, h * 0.16, w * 0.64, h * 0.22, w * 0.50, h * 0.22)
+      ..close();
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+/// Tux (Linux) penguin — simplified.
+class _TuxLogoPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final bodyPaint = Paint()..color = const Color(0xFF333333);
+    final body = Path()
+      ..moveTo(w * 0.50, h * 0.0)
+      ..cubicTo(w * 0.28, h * 0.0, w * 0.18, h * 0.15, w * 0.18, h * 0.30)
+      ..cubicTo(w * 0.10, h * 0.42, w * 0.04, h * 0.55, w * 0.08, h * 0.72)
+      ..cubicTo(w * 0.10, h * 0.82, w * 0.16, h * 0.88, w * 0.22, h * 0.92)
+      ..lineTo(w * 0.18, h * 0.94)..lineTo(w * 0.40, h * 0.94)
+      ..lineTo(w * 0.40, h * 0.88)..lineTo(w * 0.60, h * 0.88)
+      ..lineTo(w * 0.60, h * 0.94)..lineTo(w * 0.82, h * 0.94)
+      ..lineTo(w * 0.78, h * 0.92)
+      ..cubicTo(w * 0.84, h * 0.88, w * 0.90, h * 0.82, w * 0.92, h * 0.72)
+      ..cubicTo(w * 0.96, h * 0.55, w * 0.90, h * 0.42, w * 0.82, h * 0.30)
+      ..cubicTo(w * 0.82, h * 0.15, w * 0.72, h * 0.0, w * 0.50, h * 0.0)
+      ..close();
+    canvas.drawPath(body, bodyPaint);
+    canvas.drawOval(Rect.fromCenter(
+      center: Offset(w * 0.50, h * 0.58), width: w * 0.44, height: h * 0.36),
+      Paint()..color = const Color(0xFFE8E8E8));
+    canvas.drawCircle(Offset(w * 0.38, h * 0.22), w * 0.09, Paint()..color = Colors.white);
+    canvas.drawCircle(Offset(w * 0.62, h * 0.22), w * 0.09, Paint()..color = Colors.white);
+    canvas.drawCircle(Offset(w * 0.39, h * 0.23), w * 0.05, Paint()..color = const Color(0xFF111111));
+    canvas.drawCircle(Offset(w * 0.61, h * 0.23), w * 0.05, Paint()..color = const Color(0xFF111111));
+    final beakPaint = Paint()..color = const Color(0xFFE8A317);
+    canvas.drawPath(Path()
+      ..moveTo(w * 0.40, h * 0.30)..lineTo(w * 0.50, h * 0.38)
+      ..lineTo(w * 0.60, h * 0.30)..close(), beakPaint);
+    canvas.drawRRect(RRect.fromRectAndRadius(
+      Rect.fromLTWH(w * 0.14, h * 0.94, w * 0.28, h * 0.06), const Radius.circular(2)), beakPaint);
+    canvas.drawRRect(RRect.fromRectAndRadius(
+      Rect.fromLTWH(w * 0.58, h * 0.94, w * 0.28, h * 0.06), const Radius.circular(2)), beakPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+// ─── Hotkey Info ───────────────────────────────────────────
+
+class _HotkeyInfo extends StatelessWidget {
+  const _HotkeyInfo();
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Global Hotkeys',
+            style: AppTheme.inter(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.bgTertiary,
+              borderRadius: BorderRadius.circular(AppColors.cardRadius),
+              border: Border.all(color: AppColors.border, width: 0.5),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _HotkeyRow(keys: 'Ctrl+Alt+M', description: 'Show/hide AudioRouter'),
+                const SizedBox(height: 6),
+                _HotkeyRow(keys: 'Ctrl+Alt+0', description: 'Mute/Unmute all apps'),
+                const SizedBox(height: 6),
+                _HotkeyRow(keys: 'Ctrl+Alt+1-9', description: 'Switch routing profiles'),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HotkeyRow extends StatelessWidget {
+  final String keys;
+  final String description;
+  const _HotkeyRow({required this.keys, required this.description});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          decoration: BoxDecoration(
+            color: AppColors.bgSecondary,
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(color: AppColors.border, width: 0.5),
+          ),
+          child: Text(
+            keys,
+            style: AppTheme.inter(fontSize: 9, color: AppColors.textSecondary, fontWeight: FontWeight.w500),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            description,
+            style: AppTheme.inter(fontSize: 11, color: AppColors.textSecondary),
+          ),
+        ),
+      ],
+    );
+  }
+}

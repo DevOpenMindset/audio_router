@@ -13,12 +13,16 @@ class ThemeService extends ChangeNotifier {
   bool _loaded = false;
   // macOS: show in Dock by default; Windows: hidden from taskbar by default (lives in tray)
   bool _showInTaskbar = Platform.isMacOS ? true : false;
+  bool _useOSAccent = false;
+  Color? _accentColor;
 
   bool get isDarkMode => _isDarkMode;
   String get uiStyle => _uiStyle;
   String get locale => _locale;
   bool get isLoaded => _loaded;
   bool get showInTaskbar => _showInTaskbar;
+  bool get useOSAccent => _useOSAccent;
+  Color? get accentColor => _accentColor;
 
   ThemeService() {
     _load();
@@ -33,6 +37,11 @@ class ThemeService extends ChangeNotifier {
       _locale = prefs.getString('locale') ?? 'fr';
       _showInTaskbar = prefs.getBool('show_in_taskbar') ??
           (Platform.isMacOS ? true : false);
+      _useOSAccent = prefs.getBool('use_os_accent') ?? false;
+      final accentValue = prefs.getInt('accent_color');
+      if (accentValue != null) {
+        _accentColor = Color(accentValue);
+      }
     } catch (e) {
       debugPrint('Failed to load theme: $e');
     }
@@ -102,6 +111,29 @@ class ThemeService extends ChangeNotifier {
       await prefs.setBool('show_in_taskbar', value);
     } catch (e) {
       debugPrint('Failed to save show_in_taskbar: $e');
+    }
+  }
+
+  Future<void> setAccentColor(Color color) async {
+    _accentColor = color;
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt('accent_color', color.value);
+    } catch (e) {
+      debugPrint('Failed to save accent_color: $e');
+    }
+  }
+
+  Future<void> setUseOSAccent(bool value) async {
+    if (_useOSAccent == value) return;
+    _useOSAccent = value;
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('use_os_accent', value);
+    } catch (e) {
+      debugPrint('Failed to save use_os_accent: $e');
     }
   }
 }

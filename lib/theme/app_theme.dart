@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:flutter/material.dart' hide Typography;
+import 'package:flutter/material.dart' hide Typography, Colors, OutlinedButton, SliderThemeData, TooltipThemeData;
+import 'package:flutter/material.dart' as material show Colors, OutlinedButton, SliderThemeData, TooltipThemeData;
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:macos_ui/macos_ui.dart' as macos;
@@ -14,6 +15,7 @@ bool isDarkTheme = true;
 
 bool get _isWindows => _plat.isWindows;
 bool get _isMacOS   => _plat.isMacOS;
+bool get _isLinux   => _plat.isLinux;
 
 class AppColors {
   AppColors._();
@@ -24,10 +26,12 @@ class AppColors {
     if (isDarkTheme) {
       if (_isWindows) return const Color(0xFF202020); // Win11 Mica dark
       if (_isMacOS)   return const Color(0xFF1E1E1E); // macOS NSWindowBg dark
+      if (_isLinux)   return const Color(0xFF242424); // Adwaita dark
       return const Color(0xFF0E0E10);
     } else {
       if (_isWindows) return const Color(0xFFF3F3F3); // Win11 Mica light
       if (_isMacOS)   return const Color(0xFFECECEC); // macOS NSWindowBg light
+      if (_isLinux)   return const Color(0xFFFAFAFA); // Adwaita light
       return const Color(0xFFF5F6F8);
     }
   }
@@ -36,10 +40,12 @@ class AppColors {
     if (isDarkTheme) {
       if (_isWindows) return const Color(0xFF2B2B2B); // Win11 card surface dark
       if (_isMacOS)   return const Color(0xFF282828); // macOS card dark
+      if (_isLinux)   return const Color(0xFF303030); // Adwaita dark card
       return const Color(0xFF18181B);
     } else {
       if (_isWindows) return const Color(0xFFFFFFFF);
       if (_isMacOS)   return const Color(0xFFFFFFFF);
+      if (_isLinux)   return const Color(0xFFFFFFFF); // Adwaita light card
       return const Color(0xFFFFFFFF);
     }
   }
@@ -48,10 +54,12 @@ class AppColors {
     if (isDarkTheme) {
       if (_isWindows) return const Color(0xFF333333);
       if (_isMacOS)   return const Color(0xFF303030);
+      if (_isLinux)   return const Color(0xFF383838); // Adwaita dark tertiary
       return const Color(0xFF1F1F23);
     } else {
       if (_isWindows) return const Color(0xFFF0F0F0);
       if (_isMacOS)   return const Color(0xFFF5F5F5);
+      if (_isLinux)   return const Color(0xFFF0F0F0); // Adwaita light tertiary
       return const Color(0xFFECEDF0);
     }
   }
@@ -60,10 +68,12 @@ class AppColors {
     if (isDarkTheme) {
       if (_isWindows) return const Color(0xFF3D3D3D);
       if (_isMacOS)   return const Color(0xFF383838);
+      if (_isLinux)   return const Color(0xFF404040); // Adwaita dark hover
       return const Color(0xFF26262B);
     } else {
       if (_isWindows) return const Color(0xFFE8E8E8);
       if (_isMacOS)   return const Color(0xFFE3E3E3);
+      if (_isLinux)   return const Color(0xFFE8E8E8); // Adwaita light hover
       return const Color(0xFFE2E4E8);
     }
   }
@@ -72,35 +82,41 @@ class AppColors {
   static Color get textPrimary {
     if (isDarkTheme) {
       if (_isWindows) return const Color(0xFFFFFFFF);
-      if (_isMacOS)   return const Color(0xFFEBEBEB); // rgba(255,255,255,0.92)
+      if (_isMacOS)   return const Color(0xFFEBEBEB);
+      if (_isLinux)   return const Color(0xFFFFFFFF); // Adwaita dark text
       return const Color(0xFFF4F4F5);
     } else {
       if (_isWindows) return const Color(0xFF000000);
       if (_isMacOS)   return const Color(0xFF1A1A1A);
+      if (_isLinux)   return const Color(0xFF1E1E1E); // Adwaita light text
       return const Color(0xFF111318);
     }
   }
 
   static Color get textSecondary {
     if (isDarkTheme) {
-      if (_isWindows) return const Color(0xFFB3B3B3); // rgba(white, 0.7)
-      if (_isMacOS)   return const Color(0xFF9E9E9E); // rgba(white, 0.62)
+      if (_isWindows) return const Color(0xFFB3B3B3);
+      if (_isMacOS)   return const Color(0xFF9E9E9E);
+      if (_isLinux)   return const Color(0xFFA0A0A0); // Adwaita dark secondary
       return const Color(0xFFA1A1AA);
     } else {
       if (_isWindows) return const Color(0xFF4D4D4D);
       if (_isMacOS)   return const Color(0xFF545454);
+      if (_isLinux)   return const Color(0xFF5E5E5E); // Adwaita light secondary
       return const Color(0xFF454952);
     }
   }
 
   static Color get textTertiary {
     if (isDarkTheme) {
-      if (_isWindows) return const Color(0xFF808080); // rgba(white, 0.5)
+      if (_isWindows) return const Color(0xFF808080);
       if (_isMacOS)   return const Color(0xFF737373);
+      if (_isLinux)   return const Color(0xFF787878); // Adwaita dark tertiary
       return const Color(0xFF71717A);
     } else {
       if (_isWindows) return const Color(0xFF737373);
       if (_isMacOS)   return const Color(0xFF888888);
+      if (_isLinux)   return const Color(0xFF7E7E7E); // Adwaita light tertiary
       return const Color(0xFF7C8190);
     }
   }
@@ -108,24 +124,28 @@ class AppColors {
   // ─── Borders ─────────────────────────────────────────────
   static Color get border {
     if (isDarkTheme) {
-      if (_isWindows) return const Color(0x15FFFFFF); // rgba(white,0.083) Win11
-      if (_isMacOS)   return const Color(0x1AFFFFFF); // rgba(white,0.1) macOS
+      if (_isWindows) return const Color(0x15FFFFFF);
+      if (_isMacOS)   return const Color(0x1AFFFFFF);
+      if (_isLinux)   return const Color(0x26FFFFFF); // Adwaita dark border
       return const Color(0xFF27272A);
     } else {
-      if (_isWindows) return const Color(0x15000000); // rgba(black,0.083)
-      if (_isMacOS)   return const Color(0x1A000000); // rgba(black,0.1)
+      if (_isWindows) return const Color(0x15000000);
+      if (_isMacOS)   return const Color(0x1A000000);
+      if (_isLinux)   return const Color(0x1A000000); // Adwaita light border
       return const Color(0xFFD5D8DE);
     }
   }
 
   static Color get borderHover {
     if (isDarkTheme) {
-      if (_isWindows) return const Color(0x29FFFFFF); // rgba(white,0.16)
-      if (_isMacOS)   return const Color(0x33FFFFFF); // rgba(white,0.2)
+      if (_isWindows) return const Color(0x29FFFFFF);
+      if (_isMacOS)   return const Color(0x33FFFFFF);
+      if (_isLinux)   return const Color(0x40FFFFFF); // Adwaita dark border hover
       return const Color(0xFF3F3F46);
     } else {
       if (_isWindows) return const Color(0x29000000);
       if (_isMacOS)   return const Color(0x33000000);
+      if (_isLinux)   return const Color(0x33000000); // Adwaita light border hover
       return const Color(0xFFBCC0C8);
     }
   }
@@ -139,8 +159,13 @@ class AppColors {
     }
     if (_isMacOS) {
       return isDarkTheme
-          ? const Color(0xFF0A84FF) // macOS dark accent (iOS 16 style)
+          ? const Color(0xFF0A84FF) // macOS dark accent
           : const Color(0xFF007AFF); // macOS light accent
+    }
+    if (_isLinux) {
+      return isDarkTheme
+          ? const Color(0xFF3584E4) // GNOME/Adwaita blue
+          : const Color(0xFF1C71D8); // Adwaita light accent
     }
     return isDarkTheme
         ? const Color(0xFF3B82F6)
@@ -154,14 +179,18 @@ class AppColors {
     if (_isMacOS) return isDarkTheme
         ? const Color(0xFF003A8C)
         : const Color(0xFFCCE4FF);
+    if (_isLinux) return isDarkTheme
+        ? const Color(0xFF1A5FB4) // Adwaita dark accent muted
+        : const Color(0xFFD0E4F7); // Adwaita light accent muted
     return isDarkTheme ? const Color(0xFF1D4ED8) : const Color(0xFF3B82F6);
   }
 
   // ─── Corner radius ───────────────────────────────────────
   /// Card/panel corner radius — matches platform conventions
   static double get cardRadius {
-    if (_isWindows) return 6.0; // WinUI3: typically 4-8px
+    if (_isWindows) return 6.0;  // WinUI3: typically 4-8px
     if (_isMacOS)   return 10.0; // macOS: 10-12px
+    if (_isLinux)   return 12.0; // Adwaita: 12px
     return 10.0;
   }
 
@@ -169,6 +198,7 @@ class AppColors {
   static double get dialogRadius {
     if (_isWindows) return 8.0;
     if (_isMacOS)   return 12.0;
+    if (_isLinux)   return 12.0; // Adwaita: 12px
     return 12.0;
   }
 
@@ -192,6 +222,13 @@ class AppColors {
       BoxShadow(
         color: const Color(0xFF000000).withValues(alpha: 0.08),
         blurRadius: 4,
+        offset: const Offset(0, 2),
+      ),
+    ];
+    if (_isLinux) return [
+      BoxShadow(
+        color: const Color(0xFF000000).withValues(alpha: 0.06),
+        blurRadius: 6,
         offset: const Offset(0, 2),
       ),
     ];
@@ -242,6 +279,7 @@ class AppTheme {
   /// Platform-aware text style.
   /// Windows → Segoe UI Variable (system font, crisp on Win11)
   /// macOS   → platform default (SF Pro via MacosApp context)
+  /// Linux   → Cantarell (GNOME system font)
   /// other   → Inter (Google Fonts)
   static TextStyle inter({
     double fontSize = 13,
@@ -264,6 +302,17 @@ class AppTheme {
     if (!kIsWeb && Platform.isMacOS) {
       // null fontFamily → SF Pro via MacosApp/CupertinoApp context
       return TextStyle(
+        fontSize: fontSize,
+        fontWeight: fontWeight,
+        color: c,
+        letterSpacing: letterSpacing,
+        height: height,
+      );
+    }
+    if (!kIsWeb && Platform.isLinux) {
+      // Cantarell is the GNOME system font; Ubuntu uses 'Ubuntu'
+      return TextStyle(
+        fontFamily: 'Cantarell',
         fontSize: fontSize,
         fontWeight: fontWeight,
         color: c,
@@ -321,5 +370,154 @@ class AppTheme {
   static macos.MacosThemeData get macosCurrent => macos.MacosThemeData(
     brightness: isDarkTheme ? Brightness.dark : Brightness.light,
     primaryColor: AppColors.accent,
+  );
+
+  /// Linux/GNOME Material theme — styled to match Adwaita/libadwaita.
+  static ThemeData get linuxDarkTheme => ThemeData(
+    brightness: Brightness.dark,
+    useMaterial3: true,
+    fontFamily: 'Cantarell',
+    colorSchemeSeed: const Color(0xFF3584E4),
+    scaffoldBackgroundColor: AppColors.bgPrimary,
+    cardColor: AppColors.bgSecondary,
+    dividerColor: AppColors.border,
+    appBarTheme: AppBarTheme(
+      backgroundColor: AppColors.bgPrimary,
+      foregroundColor: AppColors.textPrimary,
+      elevation: 0,
+      titleTextStyle: inter(fontSize: 16, fontWeight: FontWeight.w600),
+    ),
+    cardTheme: CardThemeData(
+      color: AppColors.bgSecondary,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppColors.cardRadius),
+        side: BorderSide(color: AppColors.border, width: 1),
+      ),
+    ),
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFF3584E4),
+        foregroundColor: material.Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      ),
+    ),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: material.OutlinedButton.styleFrom(
+        foregroundColor: AppColors.textPrimary,
+        side: BorderSide(color: AppColors.border),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      ),
+    ),
+    switchTheme: SwitchThemeData(
+      thumbColor: WidgetStateProperty.resolveWith((states) =>
+        states.contains(WidgetState.selected)
+          ? material.Colors.white
+          : AppColors.textTertiary),
+      trackColor: WidgetStateProperty.resolveWith((states) =>
+        states.contains(WidgetState.selected)
+          ? const Color(0xFF3584E4)
+          : AppColors.bgTertiary),
+    ),
+    sliderTheme: material.SliderThemeData(
+      activeTrackColor: const Color(0xFF3584E4),
+      inactiveTrackColor: AppColors.bgTertiary,
+      thumbColor: material.Colors.white,
+      overlayColor: const Color(0xFF3584E4).withValues(alpha: 0.12),
+    ),
+    dialogTheme: DialogThemeData(
+      backgroundColor: AppColors.bgSecondary,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppColors.dialogRadius),
+      ),
+    ),
+    tooltipTheme: material.TooltipThemeData(
+      decoration: BoxDecoration(
+        color: AppColors.bgTertiary,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: AppColors.border),
+      ),
+      textStyle: inter(fontSize: 12, color: AppColors.textPrimary),
+    ),
+  );
+
+  static ThemeData get linuxLightTheme => ThemeData(
+    brightness: Brightness.light,
+    useMaterial3: true,
+    fontFamily: 'Cantarell',
+    colorSchemeSeed: const Color(0xFF1C71D8),
+    scaffoldBackgroundColor: AppColors.bgPrimary,
+    cardColor: AppColors.bgSecondary,
+    dividerColor: AppColors.border,
+    appBarTheme: AppBarTheme(
+      backgroundColor: AppColors.bgPrimary,
+      foregroundColor: AppColors.textPrimary,
+      elevation: 0,
+      titleTextStyle: inter(fontSize: 16, fontWeight: FontWeight.w600),
+    ),
+    cardTheme: CardThemeData(
+      color: AppColors.bgSecondary,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppColors.cardRadius),
+        side: BorderSide(color: AppColors.border, width: 1),
+      ),
+    ),
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFF1C71D8),
+        foregroundColor: material.Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      ),
+    ),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: material.OutlinedButton.styleFrom(
+        foregroundColor: AppColors.textPrimary,
+        side: BorderSide(color: AppColors.border),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      ),
+    ),
+    switchTheme: SwitchThemeData(
+      thumbColor: WidgetStateProperty.resolveWith((states) =>
+        states.contains(WidgetState.selected)
+          ? material.Colors.white
+          : AppColors.textTertiary),
+      trackColor: WidgetStateProperty.resolveWith((states) =>
+        states.contains(WidgetState.selected)
+          ? const Color(0xFF1C71D8)
+          : AppColors.bgTertiary),
+    ),
+    sliderTheme: material.SliderThemeData(
+      activeTrackColor: const Color(0xFF1C71D8),
+      inactiveTrackColor: AppColors.bgTertiary,
+      thumbColor: const Color(0xFF1C71D8),
+      overlayColor: const Color(0xFF1C71D8).withValues(alpha: 0.12),
+    ),
+    dialogTheme: DialogThemeData(
+      backgroundColor: AppColors.bgSecondary,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppColors.dialogRadius),
+      ),
+    ),
+    tooltipTheme: material.TooltipThemeData(
+      decoration: BoxDecoration(
+        color: AppColors.bgTertiary,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: AppColors.border),
+      ),
+      textStyle: inter(fontSize: 12, color: AppColors.textPrimary),
+    ),
   );
 }

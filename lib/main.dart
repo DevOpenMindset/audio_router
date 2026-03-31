@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter/material.dart' as material;
 import 'package:macos_ui/macos_ui.dart' as macos;
 import 'package:provider/provider.dart';
 import 'package:system_tray/system_tray.dart';
@@ -27,6 +28,9 @@ Future<void> _initSystemTray() async {
   if (Platform.isMacOS) {
     iconPath = '$exeDir/../Frameworks/App.framework/Resources/flutter_assets/assets/tray_icon.png';
     fallbackIcon = '$exeDir/../Resources/app_icon.png';
+  } else if (Platform.isLinux) {
+    iconPath = '$exeDir/data/flutter_assets/assets/tray_icon.png';
+    fallbackIcon = '/usr/share/icons/hicolor/256x256/apps/audio_router.png';
   } else {
     iconPath = '$exeDir\\data\\flutter_assets\\assets\\tray_icon.ico';
     fallbackIcon = '$exeDir\\windows\\runner\\resources\\app_icon.ico';
@@ -88,16 +92,16 @@ void main() async {
   
   // Load saved taskbar preference (default: show in Dock on macOS, hide on Windows)
   final showInTaskbar = prefs.getBool('show_in_taskbar') ??
-      (Platform.isMacOS ? true : false);
+      (Platform.isMacOS || Platform.isLinux ? true : false);
 
-  // Restore saved window size (default 380×560, min 340×420, no max)
-  final savedW = prefs.getDouble('window_width')  ?? 380.0;
-  final savedH = prefs.getDouble('window_height') ?? 560.0;
+  // Restore saved window size (default 520×600, min 520×520, no max)
+  final savedW = prefs.getDouble('window_width')  ?? 520.0;
+  final savedH = prefs.getDouble('window_height') ?? 600.0;
 
   // Platform-specific window options
   final windowOptions = WindowOptions(
     size: Size(savedW, savedH),
-    minimumSize: const Size(340, 420),
+    minimumSize: const Size(520, 520),
     center: prefs.getDouble('window_width') == null, // only center on first launch
     backgroundColor: Colors.transparent,
     titleBarStyle: TitleBarStyle.hidden,
@@ -105,6 +109,7 @@ void main() async {
     alwaysOnTop: false,
   );
   await windowManager.waitUntilReadyToShow(windowOptions, () async {
+    await windowManager.setMinimumSize(const Size(520, 520));
     await windowManager.setResizable(true);
     await windowManager.show();
     await windowManager.focus();
@@ -125,7 +130,19 @@ class AudioRouterApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => _audioService = AudioService()),
+        ChangeNotifierProvider(create: (_) {
+          final svc = AudioService();
+          _audioService = svc;
+          svc.onHotkeyShowHide = () async {
+            if (await windowManager.isVisible()) {
+              await windowManager.hide();
+            } else {
+              await windowManager.show();
+              await windowManager.focus();
+            }
+          };
+          return svc;
+        }),
         ChangeNotifierProvider(create: (_) => ThemeService()),
         ChangeNotifierProvider(create: (_) => CustomNameService()),
         Provider<UpdateService>(create: (_) => UpdateService(prefs)),
@@ -142,6 +159,18 @@ class AudioRouterApp extends StatelessWidget {
               debugShowCheckedModeBanner: false,
               theme: AppTheme.macosCurrent,
               home: macos.MacosWindow(child: const HomeScreen()),
+            );
+          }
+          if (Platform.isLinux) {
+            return material.MaterialApp(
+              title: 'AudioRouter',
+              debugShowCheckedModeBanner: false,
+              theme: AppTheme.linuxLightTheme,
+              darkTheme: AppTheme.linuxDarkTheme,
+              themeMode: isDarkTheme
+                  ? material.ThemeMode.dark
+                  : material.ThemeMode.light,
+              home: const HomeScreen(),
             );
           }
           return FluentApp(
@@ -161,6 +190,22 @@ class AudioRouterApp extends StatelessWidget {
                 return macos.MacosTheme(
                   data: AppTheme.macosCurrent,
                   child: child!,
+                );
+              }
+              if (_plat.isLinux) {
+                return material.Theme(
+                  data: isDarkTheme
+                      ? AppTheme.linuxDarkTheme
+                      : AppTheme.linuxLightTheme,
+                  child: material.Material(
+                    color: AppColors.bgPrimary,
+                    child: material.ScaffoldMessenger(
+                      child: material.Scaffold(
+                        backgroundColor: AppColors.bgPrimary,
+                        body: child!,
+                      ),
+                    ),
+                  ),
                 );
               }
               return child!;

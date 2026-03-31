@@ -136,6 +136,34 @@ AUDIO_API int32_t audio_set_autostart(int32_t enabled);
 /// Returns 1 if auto-start is enabled, 0 otherwise.
 AUDIO_API int32_t audio_get_autostart(void);
 
+// ─── Default Device ─────────────────────────────────────────
+
+/// Set the default audio playback device.
+/// `device_id` is the MMDevice endpoint ID string.
+/// Returns 0 on success, negative on error.
+AUDIO_API int32_t audio_set_default_device(const wchar_t* device_id);
+
+// ─── Device Balance (Stereo L/R) ────────────────────────────
+
+/// Get stereo balance for a device. Returns a value from -1.0 (full left)
+/// through 0.0 (center) to 1.0 (full right). Returns 0.0 on error.
+AUDIO_API float audio_get_device_balance(const wchar_t* device_id);
+
+/// Set stereo balance for a device. balance: -1.0 (left) to 1.0 (right).
+/// Returns 0 on success.
+AUDIO_API int32_t audio_set_device_balance(const wchar_t* device_id, float balance);
+
+// ─── OS Sound Settings ──────────────────────────────────────
+
+/// Open the native OS sound settings dialog.
+/// Returns 0 on success.
+AUDIO_API int32_t audio_open_sound_settings(void);
+
+// ─── OS Accent Color ────────────────────────────────────────
+
+/// Get the OS accent color as ARGB. Returns 0 on failure.
+AUDIO_API uint32_t audio_get_accent_color(void);
+
 // ─── Global Hotkeys ─────────────────────────────────────────
 
 /// Register a global hotkey. id = unique ID (1-based), modifiers = MOD_* flags, vk = virtual key.

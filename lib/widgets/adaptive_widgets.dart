@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart' show CupertinoIcons;
+import 'package:flutter/material.dart' as material;
 import 'package:flutter/widgets.dart';
 import 'package:fluent_ui/fluent_ui.dart' as fluent;
 import 'package:macos_ui/macos_ui.dart' as macos;
@@ -11,6 +12,7 @@ import '../theme/app_theme.dart';
 // MacosTheme + MacosWindow are injected via FluentApp.builder in main.dart, so
 // every macos_ui widget finds the required ancestor regardless of hardware.
 bool get _onMacOS => _plat.isMacOS;
+bool get _onLinux => _plat.isLinux;
 
 // ─── Icon helpers (runtime, not const) ───────────────────────
 
@@ -54,6 +56,19 @@ class AdaptiveButton extends StatelessWidget {
         ),
       );
     }
+    if (_onLinux) {
+      return material.OutlinedButton(
+        onPressed: onPressed,
+        style: material.OutlinedButton.styleFrom(
+          foregroundColor: AppColors.textPrimary,
+          side: BorderSide(color: AppColors.border),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          padding: EdgeInsets.symmetric(horizontal: isSmall ? 10 : 16, vertical: isSmall ? 6 : 10),
+          textStyle: TextStyle(fontSize: isSmall ? 12 : 14, fontWeight: FontWeight.w400),
+        ),
+        child: child,
+      );
+    }
     return fluent.Button(
       onPressed: onPressed, 
       child: DefaultTextStyle(
@@ -93,6 +108,19 @@ class AdaptivePrimaryButton extends StatelessWidget {
           ),
           child: child,
         ),
+      );
+    }
+    if (_onLinux) {
+      return material.ElevatedButton(
+        onPressed: onPressed,
+        style: material.ElevatedButton.styleFrom(
+          backgroundColor: AppColors.accent,
+          foregroundColor: material.Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          padding: EdgeInsets.symmetric(horizontal: isSmall ? 10 : 16, vertical: isSmall ? 6 : 10),
+          textStyle: TextStyle(fontSize: isSmall ? 12 : 14, fontWeight: FontWeight.w500),
+        ),
+        child: child,
       );
     }
     return fluent.FilledButton(
@@ -166,6 +194,36 @@ class AdaptiveTextField extends StatelessWidget {
         decoration: decoration,
       );
     }
+    if (_onLinux) {
+      return material.TextField(
+        controller: controller,
+        focusNode: focusNode,
+        style: resolvedStyle,
+        autofocus: autofocus,
+        onSubmitted: onSubmitted,
+        onChanged: onChanged,
+        decoration: material.InputDecoration(
+          hintText: placeholder,
+          hintStyle: resolvedPlaceholderStyle,
+          contentPadding: padding,
+          isDense: true,
+          border: material.OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide(color: AppColors.border),
+          ),
+          enabledBorder: material.OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide(color: AppColors.border),
+          ),
+          focusedBorder: material.OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide(color: AppColors.accent, width: 2),
+          ),
+          filled: true,
+          fillColor: AppColors.bgTertiary,
+        ),
+      );
+    }
     return fluent.TextBox(
       controller: controller,
       focusNode: focusNode,
@@ -213,6 +271,24 @@ class AdaptiveSlider extends StatelessWidget {
         color: macos.MacosColor(AppColors.accent.toARGB32()),
       );
     }
+    if (_onLinux) {
+      return material.SliderTheme(
+        data: material.SliderThemeData(
+          activeTrackColor: AppColors.accent,
+          inactiveTrackColor: AppColors.bgTertiary,
+          thumbColor: isDarkTheme ? material.Colors.white : AppColors.accent,
+          overlayColor: AppColors.accent.withValues(alpha: 0.12),
+          trackHeight: 4,
+        ),
+        child: material.Slider(
+          value: value,
+          min: min,
+          max: max,
+          onChanged: onChanged,
+          onChangeEnd: onChangeEnd,
+        ),
+      );
+    }
     return fluent.Slider(
       value: value,
       min: min,
@@ -239,6 +315,16 @@ class AdaptiveToggle extends StatelessWidget {
         value: checked,
         onChanged: onChanged,
         activeColor: macos.MacosColor(AppColors.accent.toARGB32()),
+      );
+    }
+    if (_onLinux) {
+      return material.Switch(
+        value: checked,
+        onChanged: onChanged,
+        activeColor: AppColors.accent,
+        activeTrackColor: AppColors.accent.withValues(alpha: 0.5),
+        inactiveThumbColor: AppColors.textTertiary,
+        inactiveTrackColor: AppColors.bgTertiary,
       );
     }
     return fluent.ToggleSwitch(checked: checked, onChanged: onChanged);
@@ -270,6 +356,24 @@ class AdaptiveComboBox<T> extends StatelessWidget {
         value: value,
         items: items
             .map((i) => macos.MacosPopupMenuItem<T>(value: i.value, child: i.child))
+            .toList(),
+        onChanged: onChanged,
+      );
+    }
+    if (_onLinux) {
+      return material.DropdownButton<T>(
+        value: value,
+        isExpanded: isExpanded,
+        style: style ?? TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w400,
+          color: AppColors.textPrimary,
+        ),
+        dropdownColor: AppColors.bgSecondary,
+        underline: const SizedBox(),
+        borderRadius: BorderRadius.circular(8),
+        items: items
+            .map((i) => material.DropdownMenuItem<T>(value: i.value, child: i.child))
             .toList(),
         onChanged: onChanged,
       );
@@ -360,6 +464,32 @@ Future<void> showAdaptiveDialog({
       ),
     );
   }
+  if (_onLinux) {
+    return material.showDialog<void>(
+      context: context,
+      builder: (ctx) => material.AlertDialog(
+        title: Text(title, style: AppTheme.inter(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+        content: content,
+        backgroundColor: AppColors.bgSecondary,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        actions: [
+          material.TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(cancelLabel, style: AppTheme.inter(fontSize: 13, color: AppColors.textTertiary)),
+          ),
+          material.ElevatedButton(
+            onPressed: () { onConfirm(); Navigator.pop(ctx); },
+            style: material.ElevatedButton.styleFrom(
+              backgroundColor: AppColors.accent,
+              foregroundColor: material.Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: Text(confirmLabel, style: AppTheme.inter(fontSize: 13, fontWeight: FontWeight.w500, color: material.Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
   return fluent.showDialog<void>(
     context: context,
     builder: (ctx) => fluent.ContentDialog(
@@ -408,6 +538,34 @@ Future<void> showAdaptiveStatefulDialog({
       ),
     );
   }
+  if (_onLinux) {
+    return material.showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => material.AlertDialog(
+          title: Text(title, style: AppTheme.inter(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+          content: contentBuilder(setDialogState),
+          backgroundColor: AppColors.bgSecondary,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          actions: [
+            material.TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(cancelLabel, style: AppTheme.inter(fontSize: 13, color: AppColors.textTertiary)),
+            ),
+            material.ElevatedButton(
+              onPressed: () { onConfirm(ctx, setDialogState)(); Navigator.pop(ctx); },
+              style: material.ElevatedButton.styleFrom(
+                backgroundColor: AppColors.accent,
+                foregroundColor: material.Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              child: Text(confirmLabel, style: AppTheme.inter(fontSize: 13, fontWeight: FontWeight.w500, color: material.Colors.white)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
   return fluent.showDialog<void>(
     context: context,
     builder: (ctx) => StatefulBuilder(
@@ -450,6 +608,21 @@ void showAdaptiveNotification(
         primaryButton: _macosBtn(label: 'OK', onPressed: () => Navigator.pop(ctx)),
       ),
     );
+    return;
+  }
+  if (_onLinux) {
+    final snackBar = material.SnackBar(
+      content: Text(message, style: AppTheme.inter(fontSize: 13, color: material.Colors.white)),
+      backgroundColor: isError
+          ? const Color(0xFFC01C28) // Adwaita red
+          : isWarning
+              ? const Color(0xFFE5A50A) // Adwaita yellow
+              : const Color(0xFF26A269), // Adwaita green
+      behavior: material.SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      duration: const Duration(seconds: 3),
+    );
+    material.ScaffoldMessenger.of(context).showSnackBar(snackBar);
     return;
   }
   fluent.displayInfoBar(

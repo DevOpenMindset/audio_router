@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=AudioRouter
+GenericName=Audio Router
+Comment=Per-app audio routing for Linux
+Exec=audio_router %U
+Icon=audio_router
+Terminal=false
+Categories=AudioVideo;Audio;Settings;
+Keywords=audio;routing;volume;mixer;pipewire;pulseaudio;
+StartupNotify=true
+StartupWMClass=audio_router
+MimeType=

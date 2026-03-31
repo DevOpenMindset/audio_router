@@ -1,7 +1,8 @@
 // ignore_for_file: non_constant_identifier_names, constant_identifier_names
 //
-// Native audio bridge — thin Dart FFI wrapper around audio_backend.dll (C++).
-// All COM/WASAPI work happens in C++; this file only marshals data across FFI.
+// Native audio bridge for Linux — thin Dart FFI wrapper around libaudio_backend.so.
+// Uses char[] (UTF-8) instead of wchar_t[] (UTF-16) for string fields.
+// All PipeWire/PulseAudio work happens in C; this file only marshals data across FFI.
 
 import 'dart:ffi';
 import 'dart:io';
@@ -10,16 +11,16 @@ import 'package:flutter/foundation.dart';
 import '../models/audio_models.dart';
 import 'audio_bridge.dart';
 
-// ─── C struct mirrors for FFI ────────────────────────────────
+// ─── C struct mirrors for Linux FFI (UTF-8 char[]) ──────────
 
-// Must match AudioDeviceInfo in audio_backend.h
-final class AudioDeviceInfoNative extends Struct {
+// Must match AudioDeviceInfo in audio_backend_linux.h
+final class AudioDeviceInfoLinux extends Struct {
   @Array(256)
-  external Array<Uint16> id;
+  external Array<Uint8> id;
   @Array(256)
-  external Array<Uint16> name;
+  external Array<Uint8> name;
   @Array(128)
-  external Array<Uint16> short_name;
+  external Array<Uint8> short_name;
   @Int32()
   external int is_default;
   @Int32()
@@ -28,14 +29,14 @@ final class AudioDeviceInfoNative extends Struct {
   external double volume;
 }
 
-// Must match AudioSessionInfo in audio_backend.h
-final class AudioSessionInfoNative extends Struct {
+// Must match AudioSessionInfo in audio_backend_linux.h
+final class AudioSessionInfoLinux extends Struct {
   @Uint32()
   external int process_id;
   @Array(256)
-  external Array<Uint16> process_name;
+  external Array<Uint8> process_name;
   @Array(256)
-  external Array<Uint16> display_name;
+  external Array<Uint8> display_name;
   @Int32()
   external int is_active;
   @Float()
@@ -46,8 +47,8 @@ final class AudioSessionInfoNative extends Struct {
   external int is_muted;
 }
 
-// Must match PeakLevelInfo in audio_backend.h
-final class PeakLevelInfoNative extends Struct {
+// Must match PeakLevelInfo in audio_backend_linux.h
+final class PeakLevelInfoLinux extends Struct {
   @Uint32()
   external int process_id;
   @Float()
@@ -66,20 +67,21 @@ typedef _AudioGetDeviceCountC = Int32 Function();
 typedef _AudioGetDeviceCountDart = int Function();
 
 typedef _AudioGetDevicesC = Int32 Function(
-    Pointer<AudioDeviceInfoNative>, Int32);
+    Pointer<AudioDeviceInfoLinux>, Int32);
 typedef _AudioGetDevicesDart = int Function(
-    Pointer<AudioDeviceInfoNative>, int);
+    Pointer<AudioDeviceInfoLinux>, int);
 
 typedef _AudioGetSessionCountC = Int32 Function();
 typedef _AudioGetSessionCountDart = int Function();
 
 typedef _AudioGetSessionsC = Int32 Function(
-    Pointer<AudioSessionInfoNative>, Int32);
+    Pointer<AudioSessionInfoLinux>, Int32);
 typedef _AudioGetSessionsDart = int Function(
-    Pointer<AudioSessionInfoNative>, int);
+    Pointer<AudioSessionInfoLinux>, int);
 
-typedef _AudioRouteProcessC = Int32 Function(Uint32, Pointer<Utf16>);
-typedef _AudioRouteProcessDart = int Function(int, Pointer<Utf16>);
+// Linux uses char* (Pointer<Utf8>) instead of wchar_t* (Pointer<Utf16>)
+typedef _AudioRouteProcessC = Int32 Function(Uint32, Pointer<Utf8>);
+typedef _AudioRouteProcessDart = int Function(int, Pointer<Utf8>);
 
 typedef _AudioSetVolumeC = Int32 Function(Uint32, Float);
 typedef _AudioSetVolumeDart = int Function(int, double);
@@ -105,37 +107,37 @@ typedef _AudioPollHotkeyDart = int Function();
 typedef _AudioGetVtableSlotC = Int32 Function();
 typedef _AudioGetVtableSlotDart = int Function();
 
-typedef _AudioGetDeviceVolumeC = Float Function(Pointer<Utf16>);
-typedef _AudioGetDeviceVolumeDart = double Function(Pointer<Utf16>);
+typedef _AudioGetDeviceVolumeC = Float Function(Pointer<Utf8>);
+typedef _AudioGetDeviceVolumeDart = double Function(Pointer<Utf8>);
 
-typedef _AudioSetDeviceVolumeC = Int32 Function(Pointer<Utf16>, Float);
-typedef _AudioSetDeviceVolumeDart = int Function(Pointer<Utf16>, double);
+typedef _AudioSetDeviceVolumeC = Int32 Function(Pointer<Utf8>, Float);
+typedef _AudioSetDeviceVolumeDart = int Function(Pointer<Utf8>, double);
 
 typedef _AudioGetAppIconC = Int32 Function(
     Uint32, Pointer<Uint8>, Int32, Pointer<Int32>, Pointer<Int32>);
 typedef _AudioGetAppIconDart = int Function(
     int, Pointer<Uint8>, int, Pointer<Int32>, Pointer<Int32>);
 
-typedef _AudioPollPeaksC = Int32 Function(Pointer<PeakLevelInfoNative>, Int32);
-typedef _AudioPollPeaksDart = int Function(Pointer<PeakLevelInfoNative>, int);
+typedef _AudioPollPeaksC = Int32 Function(Pointer<PeakLevelInfoLinux>, Int32);
+typedef _AudioPollPeaksDart = int Function(Pointer<PeakLevelInfoLinux>, int);
 
-typedef _AudioStartMirrorC = Int32 Function(Pointer<Utf16>, Pointer<Utf16>);
-typedef _AudioStartMirrorDart = int Function(Pointer<Utf16>, Pointer<Utf16>);
+typedef _AudioStartMirrorC = Int32 Function(Pointer<Utf8>, Pointer<Utf8>);
+typedef _AudioStartMirrorDart = int Function(Pointer<Utf8>, Pointer<Utf8>);
 
-typedef _AudioStopMirrorC = Int32 Function(Pointer<Utf16>, Pointer<Utf16>);
-typedef _AudioStopMirrorDart = int Function(Pointer<Utf16>, Pointer<Utf16>);
+typedef _AudioStopMirrorC = Int32 Function(Pointer<Utf8>, Pointer<Utf8>);
+typedef _AudioStopMirrorDart = int Function(Pointer<Utf8>, Pointer<Utf8>);
 
 typedef _AudioStopAllMirrorsC = Void Function();
 typedef _AudioStopAllMirrorsDart = void Function();
 
-typedef _AudioSetDefaultDeviceC = Int32 Function(Pointer<Utf16>);
-typedef _AudioSetDefaultDeviceDart = int Function(Pointer<Utf16>);
+typedef _AudioSetDefaultDeviceC = Int32 Function(Pointer<Utf8>);
+typedef _AudioSetDefaultDeviceDart = int Function(Pointer<Utf8>);
 
-typedef _AudioGetDeviceBalanceC = Float Function(Pointer<Utf16>);
-typedef _AudioGetDeviceBalanceDart = double Function(Pointer<Utf16>);
+typedef _AudioGetDeviceBalanceC = Float Function(Pointer<Utf8>);
+typedef _AudioGetDeviceBalanceDart = double Function(Pointer<Utf8>);
 
-typedef _AudioSetDeviceBalanceC = Int32 Function(Pointer<Utf16>, Float);
-typedef _AudioSetDeviceBalanceDart = int Function(Pointer<Utf16>, double);
+typedef _AudioSetDeviceBalanceC = Int32 Function(Pointer<Utf8>, Float);
+typedef _AudioSetDeviceBalanceDart = int Function(Pointer<Utf8>, double);
 
 typedef _AudioOpenSoundSettingsC = Int32 Function();
 typedef _AudioOpenSoundSettingsDart = int Function();
@@ -143,9 +145,9 @@ typedef _AudioOpenSoundSettingsDart = int Function();
 typedef _AudioGetAccentColorC = Uint32 Function();
 typedef _AudioGetAccentColorDart = int Function();
 
-// ─── Helper: read wchar_t[] from FFI Array ───────────────────
+// ─── Helper: read char[] (UTF-8) from FFI Array ─────────────
 
-String _readWCharArray(Array<Uint16> arr, int maxLen) {
+String _readUtf8Array(Array<Uint8> arr, int maxLen) {
   final codes = <int>[];
   for (int i = 0; i < maxLen; i++) {
     final c = arr[i];
@@ -155,11 +157,11 @@ String _readWCharArray(Array<Uint16> arr, int maxLen) {
   return String.fromCharCodes(codes);
 }
 
-// ─── NativeAudioBridge ───────────────────────────────────────
+// ─── NativeAudioBridgeLinux ─────────────────────────────────
 
-/// Native audio backend that delegates to audio_backend.dll (Windows)
-/// or libaudio_backend.dylib (macOS). This class only marshals data.
-class NativeAudioBridge implements AudioBridge {
+/// Native audio backend for Linux — delegates to libaudio_backend.so
+/// which uses PipeWire or PulseAudio under the hood.
+class NativeAudioBridgeLinux implements AudioBridge {
   late final DynamicLibrary _lib;
   bool _initialized = false;
 
@@ -191,34 +193,20 @@ class NativeAudioBridge implements AudioBridge {
   late final _AudioOpenSoundSettingsDart _openSoundSettings;
   late final _AudioGetAccentColorDart _getAccentColor;
 
-  /// Load the native audio library and resolve all function symbols.
-  /// Windows: audio_backend.dll  |  macOS: libaudio_backend.dylib
   @override
   Future<void> initialize() async {
     if (_initialized) return;
 
-    final String libPath;
-
-    if (Platform.isWindows) {
-      // DLL sits next to the executable
-      final exeDir = File(Platform.resolvedExecutable).parent.path;
-      libPath = '$exeDir\\audio_backend.dll';
-    } else if (Platform.isMacOS) {
-      // dylib is embedded in the app bundle's Frameworks directory
-      final exeDir = File(Platform.resolvedExecutable).parent.path;
-      final inFrameworks = '$exeDir/../Frameworks/libaudio_backend.dylib';
-      // Fallback: next to the executable (useful during development)
-      final nextToExe = '$exeDir/libaudio_backend.dylib';
-      libPath = File(inFrameworks).existsSync() ? inFrameworks : nextToExe;
-    } else {
-      throw StateError('Unsupported platform: ${Platform.operatingSystem}');
-    }
+    final exeDir = File(Platform.resolvedExecutable).parent.path;
+    // libaudio_backend.so sits in the lib/ subdirectory of the bundle
+    final inLib = '$exeDir/lib/libaudio_backend.so';
+    final nextToExe = '$exeDir/libaudio_backend.so';
+    final libPath = File(inLib).existsSync() ? inLib : nextToExe;
 
     if (!File(libPath).existsSync()) {
       throw StateError(
         'Native audio library not found at $libPath\n'
-        'Windows: build audio_backend.dll from windows/audio_backend/\n'
-        'macOS:   run macos/audio_backend/build.sh, then embed in app bundle.',
+        'Linux: build libaudio_backend.so from linux/audio_backend/',
       );
     }
 
@@ -304,133 +292,110 @@ class NativeAudioBridge implements AudioBridge {
         .lookupFunction<_AudioGetAccentColorC, _AudioGetAccentColorDart>(
             'audio_get_accent_color');
 
-    // Initialize COM inside the DLL
     final hr = _audioInit();
     if (hr != 0) {
-      throw StateError('audio_init failed with HRESULT 0x${hr.toRadixString(16)}');
+      throw StateError('audio_init failed with code $hr');
     }
 
     _initialized = true;
-    debugPrint('NativeAudioBridge: initialized via audio_backend.dll');
+    final backend = _getVtableSlot();
+    final backendName = backend == 0 ? 'PipeWire' : backend == 1 ? 'PulseAudio' : 'unknown';
+    debugPrint('NativeAudioBridgeLinux: initialized via $backendName backend');
   }
 
   void _ensureInitialized() {
     if (!_initialized) {
       throw StateError(
-        'NativeAudioBridge not initialized. Call initialize() first.',
+        'NativeAudioBridgeLinux not initialized. Call initialize() first.',
       );
     }
   }
 
-  /// Enumerate all active audio output (render) devices.
   @override
   List<AudioDevice> enumerateDevices() {
     _ensureInitialized();
-
     const maxDevices = 32;
-    final pDevices = calloc<AudioDeviceInfoNative>(maxDevices);
-
+    final pDevices = calloc<AudioDeviceInfoLinux>(maxDevices);
     try {
       final count = _getDevices(pDevices, maxDevices);
       final devices = <AudioDevice>[];
-
       for (int i = 0; i < count; i++) {
         final d = pDevices[i];
         devices.add(AudioDevice(
-          id: _readWCharArray(d.id, 256),
-          name: _readWCharArray(d.name, 256),
-          shortName: _readWCharArray(d.short_name, 128),
+          id: _readUtf8Array(d.id, 256),
+          name: _readUtf8Array(d.name, 256),
+          shortName: _readUtf8Array(d.short_name, 128),
           isDefault: d.is_default != 0,
           isActive: d.is_active != 0,
           volume: d.volume.clamp(0.0, 1.0),
         ));
       }
-
       return devices;
     } finally {
       calloc.free(pDevices);
     }
   }
 
-  /// Enumerate all active audio sessions (apps producing audio).
   @override
   List<AudioSession> enumerateAudioSessions() {
     _ensureInitialized();
-
     const maxSessions = 64;
-    final pSessions = calloc<AudioSessionInfoNative>(maxSessions);
-
+    final pSessions = calloc<AudioSessionInfoLinux>(maxSessions);
     try {
       final count = _getSessions(pSessions, maxSessions);
       final sessions = <AudioSession>[];
-
       for (int i = 0; i < count; i++) {
         final s = pSessions[i];
         sessions.add(AudioSession(
           processId: s.process_id.toString(),
-          processName: _readWCharArray(s.process_name, 256),
-          displayName: _readWCharArray(s.display_name, 256),
+          processName: _readUtf8Array(s.process_name, 256),
+          displayName: _readUtf8Array(s.display_name, 256),
           peakLevel: s.peak_level.clamp(0.0, 1.0),
           volume: s.volume.clamp(0.0, 1.0),
           isMuted: s.is_muted != 0,
           isActive: s.is_active != 0,
         ));
       }
-
       return sessions;
     } finally {
       calloc.free(pSessions);
     }
   }
 
-  /// Get peak levels for all current sessions via the dedicated fast-poll function.
-  /// Does NOT re-enumerate WASAPI sessions — reads cached device meters only.
   @override
   Map<String, double> getPeakLevels() {
     _ensureInitialized();
-
     const maxSessions = 64;
-    final pPeaks = calloc<PeakLevelInfoNative>(maxSessions);
-
+    final pPeaks = calloc<PeakLevelInfoLinux>(maxSessions);
     try {
       final count = _pollPeaks(pPeaks, maxSessions);
       final levels = <String, double>{};
-
       for (int i = 0; i < count; i++) {
         final p = pPeaks[i];
         levels[p.process_id.toString()] = p.peak_level.clamp(0.0, 1.0);
       }
-
       return levels;
     } finally {
       calloc.free(pPeaks);
     }
   }
 
-  /// Route a process's audio to a specific device.
-  /// Returns the HRESULT: 0=COM success, 1=registry fallback, negative=error.
   @override
   int routeAppToDevice(String processId, String deviceId) {
     _ensureInitialized();
-
-    final pDeviceId = deviceId.toNativeUtf16();
+    final pDeviceId = deviceId.toNativeUtf8();
     try {
       final pid = int.tryParse(processId) ?? 0;
       final hr = _routeProcess(pid, pDeviceId);
-      final slot = _getVtableSlot();
-      final path = hr == 0
-          ? 'COM vtable slot $slot'
-          : hr == 1
-              ? 'registry fallback'
-              : 'error 0x${hr.toUnsigned(32).toRadixString(16).toUpperCase()}';
-      debugPrint('routeAppToDevice: pid=$pid path=$path');
+      final backend = _getVtableSlot();
+      final backendName = backend == 0 ? 'PipeWire' : 'PulseAudio';
+      debugPrint('routeAppToDevice: pid=$pid via $backendName result=$hr');
       return hr;
     } finally {
       calloc.free(pDeviceId);
     }
   }
 
-  /// Set volume for a specific process (0.0 - 1.0).
   @override
   void setVolume(String processId, double volume) {
     _ensureInitialized();
@@ -438,7 +403,6 @@ class NativeAudioBridge implements AudioBridge {
     _setVolume(pid, volume.clamp(0.0, 1.0));
   }
 
-  /// Set mute state for a specific process.
   @override
   void setMute(String processId, bool muted) {
     _ensureInitialized();
@@ -446,11 +410,10 @@ class NativeAudioBridge implements AudioBridge {
     _setMute(pid, muted ? 1 : 0);
   }
 
-  /// Get master volume for a device (0.0 - 1.0). Returns -1 on error.
   @override
   double getDeviceVolume(String deviceId) {
     _ensureInitialized();
-    final pId = deviceId.toNativeUtf16();
+    final pId = deviceId.toNativeUtf8();
     try {
       return _getDeviceVolume(pId);
     } finally {
@@ -458,11 +421,10 @@ class NativeAudioBridge implements AudioBridge {
     }
   }
 
-  /// Set master volume for a device (0.0 - 1.0).
   @override
   void setDeviceVolume(String deviceId, double volume) {
     _ensureInitialized();
-    final pId = deviceId.toNativeUtf16();
+    final pId = deviceId.toNativeUtf8();
     try {
       _setDeviceVolume(pId, volume.clamp(0.0, 1.0));
     } finally {
@@ -470,43 +432,36 @@ class NativeAudioBridge implements AudioBridge {
     }
   }
 
-  /// Enable or disable auto-start at Windows login.
   @override
   void setAutostart(bool enabled) {
     _ensureInitialized();
     _setAutostart(enabled ? 1 : 0);
   }
 
-  /// Check if auto-start is enabled.
   @override
   bool getAutostart() {
     _ensureInitialized();
     return _getAutostart() != 0;
   }
 
-  /// Register a global hotkey. Returns true on success.
-  /// modifiers: MOD_ALT=1, MOD_CONTROL=2, MOD_SHIFT=4, MOD_WIN=8
   @override
   bool registerHotkey(int id, int modifiers, int virtualKey) {
     _ensureInitialized();
     return _registerHotkey(id, modifiers, virtualKey) == 0;
   }
 
-  /// Unregister a global hotkey.
   @override
   void unregisterHotkey(int id) {
     _ensureInitialized();
     _unregisterHotkey(id);
   }
 
-  /// Poll for hotkey press. Returns hotkey id or 0 if none.
   @override
   int pollHotkey() {
     _ensureInitialized();
     return _pollHotkey();
   }
 
-  /// Get app icon as 32×32 RGBA bytes. Returns null on error.
   @override
   Uint8List? getAppIcon(String processId) {
     _ensureInitialized();
@@ -527,12 +482,11 @@ class NativeAudioBridge implements AudioBridge {
     }
   }
 
-  /// Start mirroring audio from sourceDeviceId to targetDeviceId.
   @override
   void startMirror(String sourceDeviceId, String targetDeviceId) {
     _ensureInitialized();
-    final pSrc = sourceDeviceId.toNativeUtf16();
-    final pTgt = targetDeviceId.toNativeUtf16();
+    final pSrc = sourceDeviceId.toNativeUtf8();
+    final pTgt = targetDeviceId.toNativeUtf8();
     try {
       _startMirror(pSrc, pTgt);
     } finally {
@@ -541,12 +495,11 @@ class NativeAudioBridge implements AudioBridge {
     }
   }
 
-  /// Stop mirroring from sourceDeviceId to targetDeviceId.
   @override
   void stopMirror(String sourceDeviceId, String targetDeviceId) {
     _ensureInitialized();
-    final pSrc = sourceDeviceId.toNativeUtf16();
-    final pTgt = targetDeviceId.toNativeUtf16();
+    final pSrc = sourceDeviceId.toNativeUtf8();
+    final pTgt = targetDeviceId.toNativeUtf8();
     try {
       _stopMirror(pSrc, pTgt);
     } finally {
@@ -555,18 +508,16 @@ class NativeAudioBridge implements AudioBridge {
     }
   }
 
-  /// Stop all active mirror threads.
   @override
   void stopAllMirrors() {
     if (!_initialized) return;
     _stopAllMirrors();
   }
 
-  /// Set a device as the default audio output device.
   @override
   int setDefaultDevice(String deviceId) {
     _ensureInitialized();
-    final pId = deviceId.toNativeUtf16();
+    final pId = deviceId.toNativeUtf8();
     try {
       return _setDefaultDevice(pId);
     } finally {
@@ -574,11 +525,10 @@ class NativeAudioBridge implements AudioBridge {
     }
   }
 
-  /// Get stereo balance for a device: -1.0 (left) to +1.0 (right).
   @override
   double getDeviceBalance(String deviceId) {
     _ensureInitialized();
-    final pId = deviceId.toNativeUtf16();
+    final pId = deviceId.toNativeUtf8();
     try {
       return _getDeviceBalance(pId);
     } finally {
@@ -586,11 +536,10 @@ class NativeAudioBridge implements AudioBridge {
     }
   }
 
-  /// Set stereo balance for a device: -1.0 (left) to +1.0 (right).
   @override
   void setDeviceBalance(String deviceId, double balance) {
     _ensureInitialized();
-    final pId = deviceId.toNativeUtf16();
+    final pId = deviceId.toNativeUtf8();
     try {
       _setDeviceBalance(pId, balance.clamp(-1.0, 1.0));
     } finally {
@@ -598,21 +547,18 @@ class NativeAudioBridge implements AudioBridge {
     }
   }
 
-  /// Open the native OS sound settings dialog.
   @override
   void openSoundSettings() {
     _ensureInitialized();
     _openSoundSettings();
   }
 
-  /// Get the OS accent color as ARGB int. Returns 0 on failure.
   @override
   int getAccentColor() {
     _ensureInitialized();
     return _getAccentColor();
   }
 
-  /// Clean up COM resources.
   @override
   void dispose() {
     if (_initialized) {

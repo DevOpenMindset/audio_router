@@ -5,13 +5,12 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/audio_models.dart';
-// Conditionally import native bridge only on Windows
-// ignore: unused_import
-import '../core/native_audio_bridge_impl.dart';
+import '../core/audio_bridge.dart';
 
-/// Audio service that bridges Flutter UI with Windows audio system.
+/// Audio service that bridges Flutter UI with the native audio system.
 ///
 /// On Windows: uses NativeAudioBridge (COM/WASAPI via FFI)
+/// On Linux:   uses NativeAudioBridgeLinux (PipeWire/PulseAudio via FFI)
 /// On other platforms: uses simulation data for UI development
 class AudioService extends ChangeNotifier {
   List<AudioDevice> _devices = [];
@@ -22,8 +21,8 @@ class AudioService extends ChangeNotifier {
   Timer? _hotkeyTimer;
   final Random _rng = Random();
 
-  // Native bridge (null on non-Windows)
-  NativeAudioBridge? _native;
+  // Native bridge (null on unsupported platforms)
+  AudioBridge? _native;
   bool _useNative = false;
 
   // Persisted per-app routes: processId → deviceId.
@@ -76,7 +75,7 @@ class AudioService extends ChangeNotifier {
     await _loadAppRules();
     await _loadRouteMemory();
     await _loadMirrorMemory();
-    if (!kIsWeb && (Platform.isWindows || Platform.isMacOS)) {
+    if (!kIsWeb && (Platform.isWindows || Platform.isMacOS || Platform.isLinux)) {
       await _initNative();
     } else {
       _initSimulation();
@@ -87,7 +86,7 @@ class AudioService extends ChangeNotifier {
 
   Future<void> _initNative() async {
     try {
-      _native = NativeAudioBridge();
+      _native = AudioBridge.create();
       await _native!.initialize();
       _useNative = true;
 
@@ -902,6 +901,88 @@ class AudioService extends ChangeNotifier {
     }
   }
 
+  // ─── SET DEFAULT DEVICE ─────────────────────────────────────
+
+  /// Set a device as the system default audio output.
+  void setDefaultDevice(String deviceId) {
+    if (!_useNative || _native == null) return;
+    try {
+      _native!.setDefaultDevice(deviceId);
+      // Refresh devices to update the isDefault flag
+      _refreshDevices();
+    } catch (e) {
+      debugPrint('setDefaultDevice error: $e');
+    }
+  }
+
+  // ─── DEVICE BALANCE (STEREO L/R) ──────────────────────────
+
+  /// Get stereo balance for a device: -1.0 (left) to +1.0 (right), 0.0 = center.
+  double getDeviceBalance(String deviceId) {
+    if (!_useNative || _native == null) return 0.0;
+    try {
+      return _native!.getDeviceBalance(deviceId);
+    } catch (e) {
+      debugPrint('getDeviceBalance error: $e');
+      return 0.0;
+    }
+  }
+
+  /// Set stereo balance for a device: -1.0 (left) to +1.0 (right).
+  void setDeviceBalance(String deviceId, double balance) {
+    if (!_useNative || _native == null) return;
+    try {
+      _native!.setDeviceBalance(deviceId, balance);
+      notifyListeners();
+    } catch (e) {
+      debugPrint('setDeviceBalance error: $e');
+    }
+  }
+
+  // ─── OS SOUND SETTINGS ────────────────────────────────────
+
+  /// Open the native OS sound settings dialog.
+  void openSoundSettings() {
+    if (!_useNative || _native == null) return;
+    try {
+      _native!.openSoundSettings();
+    } catch (e) {
+      debugPrint('openSoundSettings error: $e');
+    }
+  }
+
+  // ─── OS ACCENT COLOR ──────────────────────────────────────
+
+  /// Get the OS accent color as ARGB int. Returns 0 on failure.
+  int getAccentColor() {
+    if (!_useNative || _native == null) return 0;
+    try {
+      return _native!.getAccentColor();
+    } catch (e) {
+      debugPrint('getAccentColor error: $e');
+      return 0;
+    }
+  }
+
+  // ─── MUTE ALL SESSIONS ────────────────────────────────────
+
+  bool _allMuted = false;
+  bool get allMuted => _allMuted;
+
+  /// Toggle mute on all active sessions.
+  void toggleMuteAll() {
+    _allMuted = !_allMuted;
+    _sessions = _sessions.map((s) {
+      for (final pid in s.allProcessIds) {
+        if (_useNative && _native != null) {
+          try { _native!.setMute(pid, _allMuted); } catch (_) {}
+        }
+      }
+      return s.copyWith(isMuted: _allMuted);
+    }).toList();
+    notifyListeners();
+  }
+
   // ─── GLOBAL HOTKEYS ────────────────────────────────────────
 
   // MOD_CONTROL = 2, MOD_ALT = 1
@@ -910,7 +991,15 @@ class AudioService extends ChangeNotifier {
   final Map<int, String> _hotkeyProfileMap = {};
   VoidCallback? onHotkeyProfileSwitch;
 
-  /// Register Ctrl+Alt+1..N for profile switching.
+  // Hotkey IDs: 100 = show/hide, 101 = mute all, 1-9 = profiles
+  static const int _hotkeyShowHideId = 100;
+  static const int _hotkeyMuteAllId = 101;
+
+  VoidCallback? onHotkeyShowHide;
+  VoidCallback? onHotkeyMuteAll;
+
+  /// Register Ctrl+Alt+1..N for profile switching,
+  /// plus Ctrl+Alt+M for show/hide and Ctrl+Alt+0 for mute all.
   void registerProfileHotkeys(List<String> profileIds) {
     if (!_useNative || _native == null) return;
 
@@ -918,9 +1007,11 @@ class AudioService extends ChangeNotifier {
     for (final id in _hotkeyProfileMap.keys) {
       _native!.unregisterHotkey(id);
     }
+    _native!.unregisterHotkey(_hotkeyShowHideId);
+    _native!.unregisterHotkey(_hotkeyMuteAllId);
     _hotkeyProfileMap.clear();
 
-    // Register new ones (Ctrl+Alt+1 through Ctrl+Alt+N, max 9)
+    // Register profile hotkeys (Ctrl+Alt+1 through Ctrl+Alt+N, max 9)
     for (int i = 0; i < profileIds.length && i < 9; i++) {
       final hotkeyId = i + 1;
       final vk = 0x31 + i; // VK_1 = 0x31
@@ -928,12 +1019,23 @@ class AudioService extends ChangeNotifier {
         _hotkeyProfileMap[hotkeyId] = profileIds[i];
       }
     }
+
+    // Ctrl+Alt+M (0x4D) = show/hide mixer
+    _native!.registerHotkey(_hotkeyShowHideId, _modCtrlAlt, 0x4D);
+    // Ctrl+Alt+0 (0x30) = mute all
+    _native!.registerHotkey(_hotkeyMuteAllId, _modCtrlAlt, 0x30);
   }
 
   void _pollHotkeys() {
     if (!_useNative || _native == null) return;
     final id = _native!.pollHotkey();
-    if (id > 0 && _hotkeyProfileMap.containsKey(id)) {
+    if (id == 0) return;
+    if (id == _hotkeyShowHideId) {
+      onHotkeyShowHide?.call();
+    } else if (id == _hotkeyMuteAllId) {
+      toggleMuteAll();
+      onHotkeyMuteAll?.call();
+    } else if (_hotkeyProfileMap.containsKey(id)) {
       _lastHotkeyProfileId = _hotkeyProfileMap[id];
       onHotkeyProfileSwitch?.call();
     }

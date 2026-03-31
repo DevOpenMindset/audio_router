@@ -33,9 +33,27 @@ class DeviceFooter extends StatelessWidget {
       children: [
         Container(height: 0.5, color: AppColors.border),
         const SizedBox(height: 12),
-        Text(
-          l10n.audioOutputs,
-          style: AppTheme.inter(fontSize: 11, color: AppColors.textTertiary),
+        Row(
+          children: [
+            Text(
+              l10n.audioOutputs,
+              style: AppTheme.inter(fontSize: 11, color: AppColors.textTertiary),
+            ),
+            const Spacer(),
+            // Mute all toggle
+            _MiniActionButton(
+              label: context.watch<AudioService>().allMuted ? '🔇' : '🔊',
+              tooltip: context.read<AudioService>().allMuted ? 'Unmute all' : 'Mute all (Ctrl+Alt+0)',
+              onTap: () => context.read<AudioService>().toggleMuteAll(),
+            ),
+            const SizedBox(width: 6),
+            // Open OS sound settings
+            _MiniActionButton(
+              label: '⚙',
+              tooltip: 'Open OS sound settings',
+              onTap: () => context.read<AudioService>().openSoundSettings(),
+            ),
+          ],
         ),
         const SizedBox(height: 8),
         // Active devices with volume sliders
@@ -67,72 +85,189 @@ class DeviceFooter extends StatelessWidget {
   }
 }
 
-class _DeviceVolumeRow extends StatelessWidget {
+class _DeviceVolumeRow extends StatefulWidget {
   final AudioDevice device;
   final double peak;
   const _DeviceVolumeRow({required this.device, required this.peak});
 
   @override
+  State<_DeviceVolumeRow> createState() => _DeviceVolumeRowState();
+}
+
+class _DeviceVolumeRowState extends State<_DeviceVolumeRow> {
+  bool _expanded = false;
+  double _balance = 0.0;
+  bool _balanceLoaded = false;
+
+  void _loadBalance() {
+    if (_balanceLoaded) return;
+    final svc = context.read<AudioService>();
+    _balance = svc.getDeviceBalance(widget.device.id);
+    _balanceLoaded = true;
+  }
+
+  @override
   Widget build(BuildContext context) {
     final audioService = context.read<AudioService>();
-    return Row(
+    final device = widget.device;
+    if (_expanded && !_balanceLoaded) _loadBalance();
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        // Status dot
-        Container(
-          width: 4,
-          height: 4,
-          decoration: BoxDecoration(
-            color: device.isDefault ? AppColors.accent : AppColors.active,
-            shape: BoxShape.circle,
-          ),
-        ),
-        const SizedBox(width: 6),
-        // Device name
-        SizedBox(
-          width: 90,
-          child: Text(
-            device.shortName,
-            style: AppTheme.inter(
-              fontSize: 11,
-              color: device.isDefault ? AppColors.accent : AppColors.textSecondary,
-              fontWeight: device.isDefault ? FontWeight.w500 : FontWeight.w400,
+        Row(
+          children: [
+            // Expand toggle
+            GestureDetector(
+              onTap: () => setState(() { _expanded = !_expanded; _balanceLoaded = false; }),
+              child: Icon(
+                _expanded ? FluentIcons.chevron_down : FluentIcons.chevron_right,
+                size: 8,
+                color: AppColors.textTertiary,
+              ),
             ),
-            overflow: TextOverflow.ellipsis,
-          ),
+            const SizedBox(width: 4),
+            // Status dot
+            Container(
+              width: 4, height: 4,
+              decoration: BoxDecoration(
+                color: device.isDefault ? AppColors.accent : AppColors.active,
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 6),
+            // Device name
+            Expanded(
+              flex: 2,
+              child: GestureDetector(
+                onTap: () => setState(() { _expanded = !_expanded; _balanceLoaded = false; }),
+                child: Text(
+                  device.shortName,
+                  style: AppTheme.inter(
+                    fontSize: 11,
+                    color: device.isDefault ? AppColors.accent : AppColors.textSecondary,
+                    fontWeight: device.isDefault ? FontWeight.w500 : FontWeight.w400,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
+            // Peak level
+            PeakLevelBar(
+              level: widget.peak,
+              color: device.isDefault ? AppColors.accent : AppColors.active,
+              width: 28, height: 3,
+            ),
+            const SizedBox(width: 6),
+            // Master volume slider
+            Expanded(
+              flex: 4,
+              child: AdaptiveSlider(
+                value: device.volume,
+                min: 0.0, max: 1.0,
+                onChanged: (v) => audioService.setDeviceVolume(device.id, v),
+              ),
+            ),
+            const SizedBox(width: 6),
+            // Percentage
+            SizedBox(
+              width: 28,
+              child: Text(
+                '${(device.volume * 100).round()}',
+                textAlign: TextAlign.right,
+                style: AppTheme.inter(fontSize: 11, color: AppColors.textTertiary, fontWeight: FontWeight.w500),
+              ),
+            ),
+          ],
         ),
-        const SizedBox(width: 6),
-        // Audio activity indicator
-        PeakLevelBar(
-          level: peak,
-          color: device.isDefault ? AppColors.accent : AppColors.active,
-          width: 28,
-          height: 3,
-        ),
-        const SizedBox(width: 6),
-        // Master volume slider
-        Expanded(
-          child: AdaptiveSlider(
-            value: device.volume,
-            min: 0.0,
-            max: 1.0,
-            onChanged: (v) => audioService.setDeviceVolume(device.id, v),
-          ),
-        ),
-        const SizedBox(width: 6),
-        // Percentage label
-        SizedBox(
-          width: 28,
-          child: Text(
-            '${(device.volume * 100).round()}',
-            textAlign: TextAlign.right,
-            style: AppTheme.inter(
-              fontSize: 11,
-              color: AppColors.textTertiary,
-              fontWeight: FontWeight.w500,
+        // ── Expanded section: set default + balance ──
+        if (_expanded) ...[
+          const SizedBox(height: 4),
+          Padding(
+            padding: const EdgeInsets.only(left: 18),
+            child: Row(
+              children: [
+                // Set as default button
+                if (!device.isDefault)
+                  _MiniActionButton(
+                    label: '★',
+                    tooltip: 'Set as default',
+                    onTap: () => audioService.setDefaultDevice(device.id),
+                  ),
+                if (!device.isDefault) const SizedBox(width: 8),
+                // Balance label
+                Text('L', style: AppTheme.inter(fontSize: 9, color: AppColors.textTertiary)),
+                const SizedBox(width: 4),
+                // Balance slider
+                Expanded(
+                  child: AdaptiveSlider(
+                    value: (_balance + 1.0) / 2.0, // map -1..+1 to 0..1
+                    min: 0.0, max: 1.0,
+                    onChanged: (v) {
+                      final bal = v * 2.0 - 1.0; // map 0..1 to -1..+1
+                      setState(() => _balance = bal);
+                      audioService.setDeviceBalance(device.id, bal);
+                    },
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Text('R', style: AppTheme.inter(fontSize: 9, color: AppColors.textTertiary)),
+                const SizedBox(width: 8),
+                // Balance value
+                SizedBox(
+                  width: 28,
+                  child: Text(
+                    _balance.abs() < 0.05 ? 'C' : '${(_balance * 100).round()}',
+                    textAlign: TextAlign.right,
+                    style: AppTheme.inter(fontSize: 9, color: AppColors.textTertiary),
+                  ),
+                ),
+              ],
             ),
           ),
-        ),
+        ],
       ],
+    );
+  }
+}
+
+class _MiniActionButton extends StatefulWidget {
+  final String label;
+  final String tooltip;
+  final VoidCallback onTap;
+  const _MiniActionButton({required this.label, required this.tooltip, required this.onTap});
+  @override
+  State<_MiniActionButton> createState() => _MiniActionButtonState();
+}
+
+class _MiniActionButtonState extends State<_MiniActionButton> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: widget.tooltip,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        onEnter: (_) => setState(() => _hovered = true),
+        onExit: (_) => setState(() => _hovered = false),
+        child: GestureDetector(
+          onTap: widget.onTap,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: _hovered ? AppColors.accent.withValues(alpha: 0.15) : AppColors.bgSecondary,
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: AppColors.border, width: 0.5),
+            ),
+            child: Text(
+              widget.label,
+              style: AppTheme.inter(fontSize: 10, color: AppColors.accent, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

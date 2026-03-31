@@ -125,13 +125,18 @@ class _WindowsTitleBar extends StatelessWidget {
             color: AppColors.border,
           ),
           // ── Pivot tabs (icon + label + accent underline) ────
-          ...List.generate(tabLabels.length, (i) => _WinTitleTab(
-            label: tabLabels[i],
-            icon: tabIcons[i],
-            selected: selectedTab == i,
-            onTap: () => onTabChanged(i),
-          )),
-          const Spacer(),
+          Expanded(
+            child: Row(
+              children: List.generate(tabLabels.length, (i) => Flexible(
+                child: _WinTitleTab(
+                  label: tabLabels[i],
+                  icon: tabIcons[i],
+                  selected: selectedTab == i,
+                  onTap: () => onTabChanged(i),
+                ),
+              )),
+            ),
+          ),
           // ── Utility buttons ─────────────────────────────────
           _WinUtilButton(
             onTap: onReset,
@@ -220,14 +225,16 @@ class _WinTitleTabState extends State<_WinTitleTab> {
               Icon(widget.icon, size: 13,
                   color: widget.selected ? AppColors.accent : color),
               const SizedBox(width: 5),
-              AnimatedDefaultTextStyle(
-                duration: const Duration(milliseconds: 140),
-                style: AppTheme.inter(
-                  fontSize: 12,
-                  fontWeight: widget.selected ? FontWeight.w600 : FontWeight.w400,
-                  color: color,
+              Flexible(
+                child: AnimatedDefaultTextStyle(
+                  duration: const Duration(milliseconds: 140),
+                  style: AppTheme.inter(
+                    fontSize: 12,
+                    fontWeight: widget.selected ? FontWeight.w600 : FontWeight.w400,
+                    color: color,
+                  ),
+                  child: Text(widget.label, overflow: TextOverflow.ellipsis, maxLines: 1),
                 ),
-                child: Text(widget.label),
               ),
             ],
           ),
@@ -438,7 +445,8 @@ class _MacTabGroup extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 28,
+      height: 30,
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: isDarkTheme
             ? Colors.white.withValues(alpha: 0.07)
@@ -454,24 +462,11 @@ class _MacTabGroup extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: List.generate(labels.length, (i) {
-          final isLast = i == labels.length - 1;
-          return Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _MacTabBtn(
-                label: labels[i],
-                icon: icons[i],
-                selected: selected == i,
-                onTap: () => onChanged(i),
-              ),
-              if (!isLast)
-                Container(
-                  width: 0.5, height: 16,
-                  color: isDarkTheme
-                      ? Colors.white.withValues(alpha: 0.10)
-                      : Colors.black.withValues(alpha: 0.07),
-                ),
-            ],
+          return _MacTabBtn(
+            label: labels[i],
+            icon: icons[i],
+            selected: selected == i,
+            onTap: () => onChanged(i),
           );
         }),
       ),
@@ -495,6 +490,10 @@ class _MacTabBtnState extends State<_MacTabBtn> {
   bool _hovered = false;
   @override
   Widget build(BuildContext context) {
+    final isSelected = widget.selected;
+    final textColor = isSelected
+        ? Colors.white
+        : _hovered ? AppColors.textSecondary : AppColors.textTertiary;
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _hovered = true),
@@ -504,33 +503,30 @@ class _MacTabBtnState extends State<_MacTabBtn> {
         behavior: HitTestBehavior.opaque,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 120),
-          padding: const EdgeInsets.symmetric(horizontal: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+          margin: const EdgeInsets.all(2),
           decoration: BoxDecoration(
-            color: widget.selected
-                ? AppColors.accent.withValues(alpha: isDarkTheme ? 0.22 : 0.13)
+            color: isSelected
+                ? AppColors.accent
                 : _hovered
                     ? (isDarkTheme
                         ? Colors.white.withValues(alpha: 0.06)
                         : Colors.black.withValues(alpha: 0.04))
                     : Colors.transparent,
-            borderRadius: BorderRadius.circular(6),
+            borderRadius: BorderRadius.circular(5),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                widget.icon, size: 12,
-                color: widget.selected ? AppColors.accent
-                    : _hovered ? AppColors.textSecondary : AppColors.textTertiary,
-              ),
+              Icon(widget.icon, size: 12, color: textColor),
               const SizedBox(width: 5),
               Text(
                 widget.label,
                 style: AppTheme.inter(
-                  fontSize: 11,
-                  fontWeight: widget.selected ? FontWeight.w600 : FontWeight.w400,
-                  color: widget.selected ? AppColors.accent
-                      : _hovered ? AppColors.textSecondary : AppColors.textTertiary,
+                  fontSize: 11.5,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                  color: textColor,
                 ),
               ),
             ],

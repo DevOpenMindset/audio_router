@@ -213,6 +213,17 @@ Win32Window::MessageHandler(HWND hwnd,
       }
       return 0;
 
+    case WM_GETMINMAXINFO: {
+      MINMAXINFO* mmi = reinterpret_cast<MINMAXINFO*>(lparam);
+      // Enforce minimum window size (520×520 logical pixels, scaled for DPI)
+      UINT dpi = FlutterDesktopGetDpiForMonitor(
+          MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST));
+      double scale = dpi / 96.0;
+      mmi->ptMinTrackSize.x = static_cast<LONG>(520 * scale);
+      mmi->ptMinTrackSize.y = static_cast<LONG>(520 * scale);
+      return 0;
+    }
+
     case WM_DWMCOLORIZATIONCOLORCHANGED:
       UpdateTheme(hwnd);
       return 0;
