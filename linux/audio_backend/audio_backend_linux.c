@@ -8,6 +8,7 @@
 #include "audio_backend_linux.h"
 
 #include <dlfcn.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

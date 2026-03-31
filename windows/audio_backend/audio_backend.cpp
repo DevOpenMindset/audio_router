@@ -1176,10 +1176,6 @@ public:
     virtual HRESULT STDMETHODCALLTYPE SetEndpointVisibility(PCWSTR, INT) = 0;
 };
 
-static const CLSID CLSID_PolicyConfigClient = {
-    0x870af99c, 0x171d, 0x4f9e, {0xaf, 0x0d, 0xe6, 0x3d, 0xf4, 0x0c, 0x2b, 0xc9}
-};
-
 AUDIO_API int32_t audio_set_default_device(const wchar_t* device_id) {
     if (!device_id || device_id[0] == L'\0') return E_INVALIDARG;
 

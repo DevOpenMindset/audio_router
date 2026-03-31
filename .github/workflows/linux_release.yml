@@ -72,11 +72,14 @@ jobs:
           mkdir -p "$DEB_DIR/usr/share/applications"
           mkdir -p "$DEB_DIR/usr/share/icons/hicolor/256x256/apps"
 
-          # Copy bundle
-          cp -r "$BUNDLE_DIR"/* "$DEB_DIR/usr/lib/audio-router/"
+          # Copy bundle (preserves lib/ subdirectory with libaudio_backend.so)
+          cp -r "$BUNDLE_DIR/." "$DEB_DIR/usr/lib/audio-router/"
+          chmod 755 "$DEB_DIR/usr/lib/audio-router/audio_router"
 
-          # Create launcher symlink
-          ln -sf /usr/lib/audio-router/audio_router "$DEB_DIR/usr/bin/audio-router"
+          # Create launcher wrapper (handles LD_LIBRARY_PATH for bundled .so files)
+          printf '#!/bin/sh\nexec /usr/lib/audio-router/audio_router "$@"\n' \
+            > "$DEB_DIR/usr/bin/audio-router"
+          chmod 755 "$DEB_DIR/usr/bin/audio-router"
 
           # Copy .desktop file (adjust Exec path)
           sed 's|Exec=audio_router|Exec=/usr/bin/audio-router|' \
@@ -87,25 +90,24 @@ jobs:
             cp assets/app_icon.png "$DEB_DIR/usr/share/icons/hicolor/256x256/apps/audio_router.png"
           fi
 
-          # Create control file
-          cat > "$DEB_DIR/DEBIAN/control" << EOF
-          Package: audio-router
-          Version: ${VERSION}
-          Section: sound
-          Priority: optional
-          Architecture: amd64
-          Depends: libgtk-3-0, libpulse0
-          Recommends: pipewire
-          Maintainer: DevOpenMindset <contact@devopenm.com>
-          Description: Per-app audio routing for Linux
-           AudioRouter lets you route individual application audio streams
-           to different output devices. Supports PipeWire and PulseAudio.
-          EOF
-          # Remove leading spaces from heredoc
-          sed -i 's/^          //' "$DEB_DIR/DEBIAN/control"
+          # Create control file (no heredoc indentation issues)
+          {
+            printf 'Package: audio-router\n'
+            printf 'Version: %s\n' "$VERSION"
+            printf 'Section: sound\n'
+            printf 'Priority: optional\n'
+            printf 'Architecture: amd64\n'
+            printf 'Depends: libgtk-3-0, libpulse0\n'
+            printf 'Recommends: pipewire\n'
+            printf 'Maintainer: DevOpenMindset <contact@devopenm.com>\n'
+            printf 'Description: Per-app audio routing for Linux\n'
+            printf ' Route individual application audio to different output devices.\n'
+            printf ' Supports PipeWire (primary) and PulseAudio (fallback).\n'
+          } > "$DEB_DIR/DEBIAN/control"
+          chmod 644 "$DEB_DIR/DEBIAN/control"
 
           # Build deb
-          dpkg-deb --build "$DEB_DIR"
+          dpkg-deb --build --root-owner-group "$DEB_DIR"
           mv "deb_build/audio-router_${VERSION}_amd64.deb" "$GITHUB_WORKSPACE/"
 
       - name: Build AppImage
