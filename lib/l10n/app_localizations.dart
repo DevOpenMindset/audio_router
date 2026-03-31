@@ -15,7 +15,7 @@ class AppLocalizations {
   }
 
   // ── General ──────────────────────────────────────────────
-  String get appName       => _p(en: 'AudioRouter',   fr: 'AudioRouter',   es: 'AudioRouter');
+  String get appName       => _p(en: 'AudioRouter (v1.2.39 OK)',   fr: 'AudioRouter (v1.2.39 OK)',   es: 'AudioRouter (v1.2.39 OK)');
   String get settings      => _p(en: 'Settings',      fr: 'Paramètres',    es: 'Ajustes');
   // Tab bar
   String get appsTab       => _p(en: 'Apps',          fr: 'Apps',          es: 'Apps');
