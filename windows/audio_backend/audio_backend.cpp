@@ -1274,17 +1274,15 @@ AUDIO_API uint32_t audio_get_accent_color(void) {
 
     DWORD color = 0;
     DWORD size = sizeof(color);
-    result = RegQueryValueExW(hKey, L"AccentColor", nullptr, nullptr,
+    // DWM AccentColor might be missing or have 0 alpha. ColorizationColor is always present
+    // and is in AARRGGBB format.
+    result = RegQueryValueExW(hKey, L"ColorizationColor", nullptr, nullptr,
                                reinterpret_cast<BYTE*>(&color), &size);
     RegCloseKey(hKey);
-    if (result != ERROR_SUCCESS) return 0;
+    if (result != ERROR_SUCCESS || color == 0) return 0;
 
-    // Registry stores ABGR, convert to ARGB
-    uint8_t a = (color >> 24) & 0xFF;
-    uint8_t b = (color >> 16) & 0xFF;
-    uint8_t g = (color >> 8) & 0xFF;
-    uint8_t r = color & 0xFF;
-    return (a << 24) | (r << 16) | (g << 8) | b;
+    // Force alpha to 0xFF (solid) to ensure Flutter renders it properly
+    return 0xFF000000 | (color & 0x00FFFFFF);
 }
 
 // ─── DLL Entry Point ─────────────────────────────────────────

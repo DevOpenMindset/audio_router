@@ -20,6 +20,8 @@ bool get _isLinux   => _plat.isLinux;
 class AppColors {
   AppColors._();
 
+  static Color? customAccentOverride;
+
   // ─── Backgrounds ────────────────────────────────────────
   // Windows 11 Mica / macOS window / generic dark
   static Color get bgPrimary {
@@ -152,6 +154,8 @@ class AppColors {
 
   // ─── Accent ──────────────────────────────────────────────
   static Color get accent {
+    if (customAccentOverride != null) return customAccentOverride!;
+
     if (_isWindows) {
       return isDarkTheme
           ? const Color(0xFF60CDFF) // Win11 dark accent
@@ -173,6 +177,12 @@ class AppColors {
   }
 
   static Color get accentMuted {
+    if (customAccentOverride != null) {
+      return isDarkTheme
+          ? customAccentOverride!.withValues(alpha: 0.6)
+          : customAccentOverride!.withValues(alpha: 0.8);
+    }
+
     if (_isWindows) return isDarkTheme
         ? const Color(0xFF003E6B)
         : const Color(0xFFCCE4F7);

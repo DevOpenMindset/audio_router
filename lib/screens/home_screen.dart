@@ -57,7 +57,21 @@ class _HomeScreenState extends State<HomeScreen> with WindowListener {
         if (updateInfo != null) showUpdateDialog(context, updateInfo);
         else showDonationDialog(context);
       });
+      
+      _audioService!.addListener(_syncColor);
+      _syncColor();
     });
+  }
+
+  void _syncColor() {
+    if (!mounted) return;
+    final themeSvc = context.read<ThemeService>();
+    if (themeSvc.useOSAccent && _audioService!.isNativeMode) {
+      final osAccent = _audioService!.getAccentColor();
+      if (osAccent != 0 && osAccent != themeSvc.accentColor?.value) {
+        themeSvc.setAccentColor(Color(osAccent));
+      }
+    }
   }
 
   @override
@@ -65,7 +79,10 @@ class _HomeScreenState extends State<HomeScreen> with WindowListener {
     windowManager.removeListener(this);
     _saveWindowSizeTimer?.cancel();
     _macTabCtrl.dispose();
-    _audioService?.onDevicesChanged = null;
+    if (_audioService != null) {
+      _audioService!.removeListener(_syncColor);
+      _audioService!.onDevicesChanged = null;
+    }
     super.dispose();
   }
 

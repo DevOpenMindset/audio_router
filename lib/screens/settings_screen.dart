@@ -2,6 +2,7 @@ import '../platform.dart';
 import 'package:flutter/cupertino.dart' show CupertinoIcons;
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:macos_ui/macos_ui.dart' as macos;
 import 'package:provider/provider.dart';
 import '../services/audio_service.dart';
@@ -500,7 +501,7 @@ class _UIStylePicker extends StatelessWidget {
               Expanded(
                 child: _StyleOption(
                   label: 'Windows 11',
-                  icon: CustomPaint(size: const Size(15, 15), painter: _WindowsLogoPainter()),
+                  icon: FaIcon(FontAwesomeIcons.windows, size: 14, color: current == 'win' ? AppColors.accent : AppColors.textSecondary),
                   value: 'win',
                   selected: current == 'win',
                   onTap: () => onChanged('win'),
@@ -510,7 +511,7 @@ class _UIStylePicker extends StatelessWidget {
               Expanded(
                 child: _StyleOption(
                   label: 'macOS',
-                  icon: CustomPaint(size: const Size(13, 15), painter: _AppleLogoPainter()),
+                  icon: FaIcon(FontAwesomeIcons.apple, size: 15, color: current == 'mac' ? AppColors.accent : AppColors.textSecondary),
                   value: 'mac',
                   selected: current == 'mac',
                   onTap: () => onChanged('mac'),
@@ -520,7 +521,7 @@ class _UIStylePicker extends StatelessWidget {
               Expanded(
                 child: _StyleOption(
                   label: 'Linux',
-                  icon: CustomPaint(size: const Size(14, 16), painter: _TuxLogoPainter()),
+                  icon: FaIcon(FontAwesomeIcons.linux, size: 15, color: current == 'linux' ? AppColors.accent : AppColors.textSecondary),
                   value: 'linux',
                   selected: current == 'linux',
                   onTap: () => onChanged('linux'),
@@ -727,7 +728,7 @@ class _VersionTileState extends State<_VersionTile> {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Row(
             children: [
-              Text('🎛️', style: const TextStyle(fontSize: 14)),
+              const Text('🎛️', style: TextStyle(fontSize: 14)),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(
@@ -913,101 +914,7 @@ class _SettingActionState extends State<_SettingAction> {
   }
 }
 
-// ─── OS Logo Painters ───────────────────────────────────────────
 
-/// Windows 11 four-pane logo.
-class _WindowsLogoPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = const Color(0xFF00A4EF);
-    final gap = size.width * 0.08;
-    final half = (size.width - gap) / 2;
-    canvas.drawRRect(RRect.fromRectAndRadius(
-      Rect.fromLTWH(0, 0, half, half), const Radius.circular(1)), paint);
-    canvas.drawRRect(RRect.fromRectAndRadius(
-      Rect.fromLTWH(half + gap, 0, half, half), const Radius.circular(1)), paint);
-    canvas.drawRRect(RRect.fromRectAndRadius(
-      Rect.fromLTWH(0, half + gap, half, half), const Radius.circular(1)), paint);
-    canvas.drawRRect(RRect.fromRectAndRadius(
-      Rect.fromLTWH(half + gap, half + gap, half, half), const Radius.circular(1)), paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-/// Apple logo (simplified silhouette).
-class _AppleLogoPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = AppColors.textSecondary
-      ..style = PaintingStyle.fill;
-    final w = size.width;
-    final h = size.height;
-    final path = Path()
-      ..moveTo(w * 0.52, h * 0.0)
-      ..cubicTo(w * 0.52, h * 0.0, w * 0.78, h * 0.0, w * 0.72, h * 0.14)
-      ..cubicTo(w * 0.66, h * 0.08, w * 0.54, h * 0.06, w * 0.52, h * 0.0)
-      ..close()
-      ..moveTo(w * 0.50, h * 0.22)
-      ..cubicTo(w * 0.36, h * 0.22, w * 0.28, h * 0.16, w * 0.18, h * 0.16)
-      ..cubicTo(w * 0.04, h * 0.16, w * -0.02, h * 0.34, w * 0.01, h * 0.52)
-      ..cubicTo(w * 0.04, h * 0.72, w * 0.18, h * 1.0, w * 0.32, h * 1.0)
-      ..cubicTo(w * 0.38, h * 1.0, w * 0.44, h * 0.94, w * 0.50, h * 0.94)
-      ..cubicTo(w * 0.56, h * 0.94, w * 0.62, h * 1.0, w * 0.68, h * 1.0)
-      ..cubicTo(w * 0.82, h * 1.0, w * 0.96, h * 0.72, w * 0.99, h * 0.52)
-      ..cubicTo(w * 1.02, h * 0.34, w * 0.96, h * 0.16, w * 0.82, h * 0.16)
-      ..cubicTo(w * 0.72, h * 0.16, w * 0.64, h * 0.22, w * 0.50, h * 0.22)
-      ..close();
-    canvas.drawPath(path, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-/// Tux (Linux) penguin — simplified.
-class _TuxLogoPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final w = size.width;
-    final h = size.height;
-    final bodyPaint = Paint()..color = const Color(0xFF333333);
-    final body = Path()
-      ..moveTo(w * 0.50, h * 0.0)
-      ..cubicTo(w * 0.28, h * 0.0, w * 0.18, h * 0.15, w * 0.18, h * 0.30)
-      ..cubicTo(w * 0.10, h * 0.42, w * 0.04, h * 0.55, w * 0.08, h * 0.72)
-      ..cubicTo(w * 0.10, h * 0.82, w * 0.16, h * 0.88, w * 0.22, h * 0.92)
-      ..lineTo(w * 0.18, h * 0.94)..lineTo(w * 0.40, h * 0.94)
-      ..lineTo(w * 0.40, h * 0.88)..lineTo(w * 0.60, h * 0.88)
-      ..lineTo(w * 0.60, h * 0.94)..lineTo(w * 0.82, h * 0.94)
-      ..lineTo(w * 0.78, h * 0.92)
-      ..cubicTo(w * 0.84, h * 0.88, w * 0.90, h * 0.82, w * 0.92, h * 0.72)
-      ..cubicTo(w * 0.96, h * 0.55, w * 0.90, h * 0.42, w * 0.82, h * 0.30)
-      ..cubicTo(w * 0.82, h * 0.15, w * 0.72, h * 0.0, w * 0.50, h * 0.0)
-      ..close();
-    canvas.drawPath(body, bodyPaint);
-    canvas.drawOval(Rect.fromCenter(
-      center: Offset(w * 0.50, h * 0.58), width: w * 0.44, height: h * 0.36),
-      Paint()..color = const Color(0xFFE8E8E8));
-    canvas.drawCircle(Offset(w * 0.38, h * 0.22), w * 0.09, Paint()..color = Colors.white);
-    canvas.drawCircle(Offset(w * 0.62, h * 0.22), w * 0.09, Paint()..color = Colors.white);
-    canvas.drawCircle(Offset(w * 0.39, h * 0.23), w * 0.05, Paint()..color = const Color(0xFF111111));
-    canvas.drawCircle(Offset(w * 0.61, h * 0.23), w * 0.05, Paint()..color = const Color(0xFF111111));
-    final beakPaint = Paint()..color = const Color(0xFFE8A317);
-    canvas.drawPath(Path()
-      ..moveTo(w * 0.40, h * 0.30)..lineTo(w * 0.50, h * 0.38)
-      ..lineTo(w * 0.60, h * 0.30)..close(), beakPaint);
-    canvas.drawRRect(RRect.fromRectAndRadius(
-      Rect.fromLTWH(w * 0.14, h * 0.94, w * 0.28, h * 0.06), const Radius.circular(2)), beakPaint);
-    canvas.drawRRect(RRect.fromRectAndRadius(
-      Rect.fromLTWH(w * 0.58, h * 0.94, w * 0.28, h * 0.06), const Radius.circular(2)), beakPaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
 
 // ─── Hotkey Info ───────────────────────────────────────────
 
@@ -1016,7 +923,6 @@ class _HotkeyInfo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = context.l10n;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Column(
@@ -1038,13 +944,13 @@ class _HotkeyInfo extends StatelessWidget {
               borderRadius: BorderRadius.circular(AppColors.cardRadius),
               border: Border.all(color: AppColors.border, width: 0.5),
             ),
-            child: Column(
+            child: const Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _HotkeyRow(keys: 'Ctrl+Alt+M', description: 'Show/hide AudioRouter'),
-                const SizedBox(height: 6),
+                SizedBox(height: 6),
                 _HotkeyRow(keys: 'Ctrl+Alt+0', description: 'Mute/Unmute all apps'),
-                const SizedBox(height: 6),
+                SizedBox(height: 6),
                 _HotkeyRow(keys: 'Ctrl+Alt+1-9', description: 'Switch routing profiles'),
               ],
             ),

@@ -13,7 +13,7 @@ class ThemeService extends ChangeNotifier {
   bool _loaded = false;
   // macOS: show in Dock by default; Windows: hidden from taskbar by default (lives in tray)
   bool _showInTaskbar = Platform.isMacOS ? true : false;
-  bool _useOSAccent = false;
+  bool _useOSAccent = true;
   Color? _accentColor;
 
   bool get isDarkMode => _isDarkMode;
@@ -37,7 +37,7 @@ class ThemeService extends ChangeNotifier {
       _locale = prefs.getString('locale') ?? 'fr';
       _showInTaskbar = prefs.getBool('show_in_taskbar') ??
           (Platform.isMacOS ? true : false);
-      _useOSAccent = prefs.getBool('use_os_accent') ?? false;
+      _useOSAccent = prefs.getBool('use_os_accent') ?? true;
       final accentValue = prefs.getInt('accent_color');
       if (accentValue != null) {
         _accentColor = Color(accentValue);
@@ -47,6 +47,7 @@ class ThemeService extends ChangeNotifier {
     }
     isDarkTheme = _isDarkMode;
     _plat.uiStyleOverride = _uiStyle;
+    AppColors.customAccentOverride = _useOSAccent ? _accentColor : null;
     _loaded = true;
     notifyListeners();
   }
@@ -116,6 +117,7 @@ class ThemeService extends ChangeNotifier {
 
   Future<void> setAccentColor(Color color) async {
     _accentColor = color;
+    AppColors.customAccentOverride = _useOSAccent ? _accentColor : null;
     notifyListeners();
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -128,6 +130,7 @@ class ThemeService extends ChangeNotifier {
   Future<void> setUseOSAccent(bool value) async {
     if (_useOSAccent == value) return;
     _useOSAccent = value;
+    AppColors.customAccentOverride = _useOSAccent ? _accentColor : null;
     notifyListeners();
     try {
       final prefs = await SharedPreferences.getInstance();
