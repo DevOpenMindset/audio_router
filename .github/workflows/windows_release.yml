@@ -56,20 +56,32 @@ jobs:
 
       - name: Upload installer to release
         shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
         run: |
           TAG="${{ github.ref_name }}"
           VERSION="${TAG#v}"
           EXE="installer/output/AudioRouter-Setup-${VERSION}.exe"
           NOTES=$(cat release_notes.txt)
-          if ! gh release upload "$TAG" "$EXE" --repo DevOpenMindset/audio_router_releases --clobber 2>/dev/null; then
-            gh release create "$TAG" "$EXE" \
-              --repo DevOpenMindset/audio_router_releases \
-              --title "Release $TAG" \
-              --notes "$NOTES"
+          RELEASE_REPO="DevOpenMindset/audio_router_releases"
+
+          if [ -n "${{ secrets.RELEASES_TOKEN }}" ]; then
+            export GH_TOKEN="${{ secrets.RELEASES_TOKEN }}"
+            if gh release view "$TAG" --repo "$RELEASE_REPO" &>/dev/null; then
+              gh release upload "$TAG" "$EXE" --repo "$RELEASE_REPO" --clobber
+              gh release edit "$TAG" --repo "$RELEASE_REPO" --notes "$NOTES" || true
+            else
+              gh release create "$TAG" "$EXE" \
+                --repo "$RELEASE_REPO" \
+                --title "Release $TAG" \
+                --notes "$NOTES"
+            fi
           else
-            gh release edit "$TAG" \
-              --repo DevOpenMindset/audio_router_releases \
-              --notes "$NOTES" 2>/dev/null || true
+            # Fallback: publish release on this repo
+            export GH_TOKEN="${{ github.token }}"
+            if gh release view "$TAG" &>/dev/null; then
+              gh release upload "$TAG" "$EXE" --clobber
+            else
+              gh release create "$TAG" "$EXE" \
+                --title "Release $TAG" \
+                --notes "$NOTES"
+            fi
           fi
