@@ -36,10 +36,10 @@ jobs:
         shell: pwsh
         run: |
           $version = "${{ github.ref_name }}".TrimStart('v')
-          (Get-Content installer/AudioRouter.iss) -replace '#define MyAppVersion ".*"', "#define MyAppVersion `"$version`"" | Set-Content installer/AudioRouter.iss
+          (Get-Content installer/SoundShift.iss) -replace '#define MyAppVersion ".*"', "#define MyAppVersion `"$version`"" | Set-Content installer/SoundShift.iss
 
       - name: Build Installer
-        run: iscc installer/AudioRouter.iss
+        run: iscc installer/SoundShift.iss
 
       - name: Extract changelog notes
         shell: bash
@@ -59,7 +59,7 @@ jobs:
         run: |
           TAG="${{ github.ref_name }}"
           VERSION="${TAG#v}"
-          EXE="installer/output/AudioRouter-Setup-${VERSION}.exe"
+          EXE="installer/output/SoundShift-Setup-${VERSION}.exe"
           NOTES=$(cat release_notes.txt)
           RELEASE_REPO="DevOpenMindset/audio_router_releases"
 

@@ -1,8 +1,13 @@
-import '../platform.dart';
+import 'dart:ui';
+
 import 'package:flutter/cupertino.dart' show CupertinoIcons;
-import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter/material.dart' show Colors, BoxShadow;
+import 'package:fluent_ui/fluent_ui.dart'
+    hide Color, Colors, BoxShadow, Offset, FontWeight, Brightness, TextStyle;
 import 'package:macos_ui/macos_ui.dart' as macos;
 import 'package:provider/provider.dart';
+
+import '../platform.dart';
 import 'adaptive_widgets.dart';
 import '../models/audio_models.dart';
 import '../services/custom_name_service.dart';
@@ -70,12 +75,12 @@ class _SessionCardState extends State<SessionCard> {
 
   void _startRename(BuildContext context) {
     final names = context.read<CustomNameService>();
-    final current = names.nameFor(
-        widget.session.processName, widget.session.displayName);
+    final current =
+        names.nameFor(widget.session.processName, widget.session.displayName);
     _renameCtrl.text = current;
     setState(() => _isRenaming = true);
-    WidgetsBinding.instance.addPostFrameCallback(
-        (_) => _renameFocus.requestFocus());
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _renameFocus.requestFocus());
   }
 
   void _commitRename(BuildContext context) {
@@ -92,145 +97,174 @@ class _SessionCardState extends State<SessionCard> {
   @override
   Widget build(BuildContext context) {
     context.watch<ThemeService>();
-    final color = AppColors.getAppColor(widget.session.processName);
+    final appColor = AppColors.getAppColor(
+      widget.session.processName,
+      pid: widget.session.processId,
+    );
     final names = context.watch<CustomNameService>();
-    final displayName = names.nameFor(
-        widget.session.processName, widget.session.displayName);
+    final displayName =
+        names.nameFor(widget.session.processName, widget.session.displayName);
     final hasCustomName = names.hasCustomName(widget.session.processName);
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 120),
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: _isHovered ? AppColors.bgTertiary : AppColors.bgSecondary,
-          borderRadius: BorderRadius.circular(AppColors.cardRadius),
-          border: Border.all(
-            color: _isHovered
-                ? AppColors.borderHover
-                : (isDarkTheme ? Colors.transparent : AppColors.border),
-            width: 0.5,
-          ),
-          boxShadow: AppColors.cardShadow,
+      child: TweenAnimationBuilder<Color?>(
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.easeInOutCubic,
+        tween: ColorTween(
+          begin: AppColors.accent,
+          end: _isHovered ? appColor : AppColors.accent,
         ),
-        child: Column(
-          children: [
-            // Top row: icon + name + peak meter
-            Row(
+        builder: (context, animatedAccent, _) {
+          // Subtle tinted background on hover
+          final bgColor = _isHovered
+              ? Color.lerp(AppColors.bgSecondary, appColor, 0.05)!
+              : AppColors.bgSecondary;
+
+          final borderColor = _isHovered
+              ? animatedAccent!.withValues(alpha: 0.3)
+              : (isDarkTheme ? Colors.transparent : AppColors.border);
+
+          return AnimatedContainer(
+            duration: const Duration(milliseconds: 500),
+            curve: Curves.easeInOutCubic,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: bgColor,
+              borderRadius: BorderRadius.circular(AppColors.cardRadius),
+              border: Border.all(
+                color: borderColor,
+                width: 0.8,
+              ),
+              boxShadow: _isHovered
+                  ? [
+                      BoxShadow(
+                        color: animatedAccent!.withValues(alpha: 0.08),
+                        blurRadius: 15,
+                        offset: const Offset(0, 4),
+                      )
+                    ]
+                  : AppColors.cardShadow,
+            ),
+            child: Column(
               children: [
-                NativeAppIcon(
-                  processId: widget.session.processId,
-                  processName: widget.session.processName,
-                  size: 34,
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Name — double-clic pour renommer, clic droit pour reset
-                      _isRenaming
-                          ? SizedBox(
-                              height: 20,
-                              child: AdaptiveTextField(
-                                controller: _renameCtrl,
-                                focusNode: _renameFocus,
-                                style: AppTheme.inter(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w500,
-                                  color: AppColors.textPrimary,
-                                ),
-                                padding: EdgeInsets.zero,
-                                decoration: const BoxDecoration(),
-                                onSubmitted: (_) => _commitRename(context),
-                              ),
-                            )
-                          : GestureDetector(
-                              onDoubleTap: () => _startRename(context),
-                              onSecondaryTap: hasCustomName
-                                  ? () => _resetName(context)
-                                  : null,
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    displayName,
+                // Top row: icon + name + peak meter
+                Row(
+                  children: [
+                    NativeAppIcon(
+                      processId: widget.session.processId,
+                      processName: widget.session.processName,
+                      size: 34,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _isRenaming
+                              ? SizedBox(
+                                  height: 20,
+                                  child: AdaptiveTextField(
+                                    controller: _renameCtrl,
+                                    focusNode: _renameFocus,
                                     style: AppTheme.inter(
                                       fontSize: 13,
                                       fontWeight: FontWeight.w500,
                                       color: AppColors.textPrimary,
                                     ),
+                                    padding: EdgeInsets.zero,
+                                    decoration: const BoxDecoration(),
+                                    onSubmitted: (_) => _commitRename(context),
                                   ),
-                                  if (hasCustomName) ...[
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      '✎',
-                                      style: AppTheme.inter(
-                                        fontSize: 9,
-                                        color: AppColors.textTertiary,
+                                )
+                              : GestureDetector(
+                                  onDoubleTap: () => _startRename(context),
+                                  onSecondaryTap: hasCustomName
+                                      ? () => _resetName(context)
+                                      : null,
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        displayName,
+                                        style: AppTheme.inter(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w500,
+                                          color: AppColors.textPrimary,
+                                        ),
                                       ),
-                                    ),
-                                  ],
-                                ],
+                                      if (hasCustomName) ...[
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          '✎',
+                                          style: AppTheme.inter(
+                                            fontSize: 9,
+                                            color: AppColors.textTertiary,
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                          if (widget.session.subtitle != null) ...[
+                            const SizedBox(height: 1),
+                            Text(
+                              widget.session.subtitle!,
+                              style: AppTheme.inter(
+                                fontSize: 11,
+                                color: AppColors.textTertiary,
                               ),
+                              overflow: TextOverflow.ellipsis,
                             ),
-                      if (widget.session.subtitle != null) ...[
-                        const SizedBox(height: 1),
-                        Text(
-                          widget.session.subtitle!,
-                          style: AppTheme.inter(
-                            fontSize: 11,
-                            color: AppColors.textTertiary,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ],
+                          ],
+                        ],
+                      ),
+                    ),
+                    PeakLevelBar(
+                      level: widget.session.peakLevel,
+                      color: animatedAccent ?? AppColors.accent,
+                      width: 52,
+                      height: 3,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                // Volume slider row
+                _VolumeRow(
+                  volume: widget.session.volume,
+                  isMuted: widget.session.isMuted,
+                  color: animatedAccent!,
+                  onVolumeChanged: widget.onVolumeChanged,
+                  onMuteToggle: widget.onMuteToggle,
+                ),
+                const SizedBox(height: 8),
+                // Bottom row: device selector
+                DeviceSelector(
+                  selectedDevice: widget.assignedDevice,
+                  devices: widget.devices,
+                  onChanged: widget.onDeviceChanged,
+                ),
+                // Mirror outputs row
+                if (widget.onMirrorAdded != null) ...[
+                  const SizedBox(height: 6),
+                  _MirrorRow(
+                    mirrorDevices: widget.mirrorDevices,
+                    availableDevices: widget.devices
+                        .where((d) =>
+                            d.isActive &&
+                            d.id != (widget.assignedDevice?.id ?? '') &&
+                            !widget.mirrorDevices.any((m) => m.id == d.id))
+                        .toList(),
+                    onAdd: widget.onMirrorAdded!,
+                    onRemove: widget.onMirrorRemoved,
+                    accentColor: animatedAccent ?? AppColors.accent,
                   ),
-                ),
-                PeakLevelBar(
-                  level: widget.session.peakLevel,
-                  color: color,
-                  width: 52,
-                  height: 3,
-                ),
+                ],
               ],
             ),
-            const SizedBox(height: 8),
-            // Volume slider row
-            _VolumeRow(
-              volume: widget.session.volume,
-              isMuted: widget.session.isMuted,
-              color: color,
-              onVolumeChanged: widget.onVolumeChanged,
-              onMuteToggle: widget.onMuteToggle,
-            ),
-            const SizedBox(height: 8),
-            // Bottom row: device selector
-            DeviceSelector(
-              selectedDevice: widget.assignedDevice,
-              devices: widget.devices,
-              onChanged: widget.onDeviceChanged,
-            ),
-            // Mirror outputs row
-            if (widget.onMirrorAdded != null) ...[
-              const SizedBox(height: 6),
-              _MirrorRow(
-                mirrorDevices: widget.mirrorDevices,
-                availableDevices: widget.devices
-                    .where((d) =>
-                        d.isActive &&
-                        d.id != (widget.assignedDevice?.id ?? '') &&
-                        !widget.mirrorDevices.any((m) => m.id == d.id))
-                    .toList(),
-                onAdd: widget.onMirrorAdded!,
-                onRemove: widget.onMirrorRemoved,
-              ),
-            ],
-          ],
-        ),
+          );
+        },
       ),
     );
   }
@@ -298,6 +332,7 @@ class _VolumeRow extends StatelessWidget {
             min: 0.0,
             max: 1.0,
             onChanged: isMuted ? null : onVolumeChanged,
+            activeColor: effectiveColor,
           ),
         ),
         const SizedBox(width: 4),
@@ -317,7 +352,6 @@ class _VolumeRow extends StatelessWidget {
     );
   }
 }
-
 
 class _SpeakerPainter extends CustomPainter {
   final Color color;
@@ -381,12 +415,14 @@ class _MirrorRow extends StatelessWidget {
   final List<AudioDevice> availableDevices;
   final ValueChanged<AudioDevice> onAdd;
   final ValueChanged<String>? onRemove;
+  final Color accentColor;
 
   const _MirrorRow({
     required this.mirrorDevices,
     required this.availableDevices,
     required this.onAdd,
     this.onRemove,
+    required this.accentColor,
   });
 
   @override
@@ -395,12 +431,13 @@ class _MirrorRow extends StatelessWidget {
       children: [
         // Mirror chips
         ...mirrorDevices.map((device) => Padding(
-          padding: const EdgeInsets.only(right: 4),
-          child: _MirrorChip(
-            label: device.shortName,
-            onRemove: onRemove != null ? () => onRemove!(device.id) : null,
-          ),
-        )),
+              padding: const EdgeInsets.only(right: 4),
+              child: _MirrorChip(
+                label: device.shortName,
+                onRemove: onRemove != null ? () => onRemove!(device.id) : null,
+                accentColor: accentColor,
+              ),
+            )),
         // Add button (only if there are available devices)
         if (availableDevices.isNotEmpty)
           _AddMirrorButton(
@@ -416,8 +453,10 @@ class _MirrorRow extends StatelessWidget {
 class _MirrorChip extends StatelessWidget {
   final String label;
   final VoidCallback? onRemove;
+  final Color accentColor;
 
-  const _MirrorChip({required this.label, this.onRemove});
+  const _MirrorChip(
+      {required this.label, this.onRemove, required this.accentColor});
 
   @override
   Widget build(BuildContext context) {
@@ -425,10 +464,10 @@ class _MirrorChip extends StatelessWidget {
       height: 22,
       padding: const EdgeInsets.symmetric(horizontal: 7),
       decoration: BoxDecoration(
-        color: AppColors.accent.withValues(alpha: 0.12),
+        color: accentColor.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(11),
         border: Border.all(
-          color: AppColors.accent.withValues(alpha: 0.3),
+          color: accentColor.withValues(alpha: 0.3),
           width: 0.5,
         ),
       ),
@@ -439,7 +478,7 @@ class _MirrorChip extends StatelessWidget {
             label,
             style: AppTheme.inter(
               fontSize: 10,
-              color: AppColors.accent,
+              color: accentColor,
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -452,7 +491,7 @@ class _MirrorChip extends StatelessWidget {
                 child: Icon(
                   FluentIcons.cancel,
                   size: 8,
-                  color: AppColors.accent.withValues(alpha: 0.7),
+                  color: accentColor.withValues(alpha: 0.7),
                 ),
               ),
             ),
@@ -494,8 +533,9 @@ class _AddMirrorButton extends StatelessWidget {
               Icon(FluentIcons.add, size: 9, color: AppColors.textTertiary),
               const SizedBox(width: 3),
               Text(
-                hasExisting ? 'Sortie' : 'Ajouter sortie',
-                style: AppTheme.inter(fontSize: 10, color: AppColors.textTertiary),
+                hasExisting ? context.l10n.audioOutputs : context.l10n.addRule, // Reusing existing keys or I should add specific ones
+                style:
+                    AppTheme.inter(fontSize: 10, color: AppColors.textTertiary),
               ),
             ],
           ),
@@ -516,16 +556,19 @@ class _AddMirrorButton extends StatelessWidget {
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
-          children: devices.map((device) => ListTile(
-            title: Text(
-              device.shortName,
-              style: AppTheme.inter(fontSize: 12, color: AppColors.textPrimary),
-            ),
-            onPressed: () {
-              Navigator.of(ctx).pop();
-              onSelected(device);
-            },
-          )).toList(),
+          children: devices
+              .map((device) => ListTile(
+                    title: Text(
+                      context.l10n.localizeDeviceName(device.shortName),
+                      style: AppTheme.inter(
+                          fontSize: 12, color: AppColors.textPrimary),
+                    ),
+                    onPressed: () {
+                      Navigator.of(ctx).pop();
+                      onSelected(device);
+                    },
+                  ))
+              .toList(),
         ),
       ),
     );

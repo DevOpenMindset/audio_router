@@ -1,5 +1,5 @@
 # ─── AudioRouter — Self-Signed Code Signing Script ───────────────────────────
-# Crée un certificat auto-signé et signe audio_router.exe + audio_backend.dll
+# Crée un certificat auto-signé et signe soundshift.exe + audio_backend.dll
 # NOTE: Réduit l'alerte SmartScreen mais ne la supprime pas totalement.
 # Pour supprimer SmartScreen complètement → EV Certificate (~300€/an) ou Windows Store.
 #
@@ -48,7 +48,7 @@ if (-not $signtool) {
 Write-Host "Utilisation de signtool : $signtool" -ForegroundColor Gray
 
 $filesToSign = @(
-    "$ReleasDir\audio_router.exe",
+    "$ReleasDir\soundshift.exe",
     "$ReleasDir\audio_backend.dll"
 )
 

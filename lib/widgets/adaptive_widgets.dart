@@ -248,6 +248,7 @@ class AdaptiveSlider extends StatelessWidget {
   final double value;
   final double min;
   final double max;
+  final Color? activeColor;
   final ValueChanged<double>? onChanged;
   final ValueChanged<double>? onChangeEnd;
 
@@ -256,28 +257,31 @@ class AdaptiveSlider extends StatelessWidget {
     required this.value,
     this.min = 0.0,
     this.max = 1.0,
+    this.activeColor,
     this.onChanged,
     this.onChangeEnd,
   });
 
   @override
   Widget build(BuildContext context) {
+    final effectiveColor = activeColor ?? AppColors.accent;
+
     if (_onMacOS) {
       return macos.MacosSlider(
         value: value,
         min: min,
         max: max,
         onChanged: onChanged ?? (_) {},
-        color: macos.MacosColor(AppColors.accent.toARGB32()),
+        color: macos.MacosColor(effectiveColor.toARGB32()),
       );
     }
     if (_onLinux) {
       return material.SliderTheme(
         data: material.SliderThemeData(
-          activeTrackColor: AppColors.accent,
+          activeTrackColor: effectiveColor,
           inactiveTrackColor: AppColors.bgTertiary,
-          thumbColor: isDarkTheme ? material.Colors.white : AppColors.accent,
-          overlayColor: AppColors.accent.withValues(alpha: 0.12),
+          thumbColor: isDarkTheme ? material.Colors.white : effectiveColor,
+          overlayColor: effectiveColor.withValues(alpha: 0.12),
           trackHeight: 4,
         ),
         child: material.Slider(
@@ -289,13 +293,19 @@ class AdaptiveSlider extends StatelessWidget {
         ),
       );
     }
-    return fluent.Slider(
-      value: value,
-      min: min,
-      max: max,
-      onChanged: onChanged,
-      onChangeEnd: onChangeEnd,
-      vertical: false,
+    return fluent.SliderTheme(
+      data: fluent.SliderThemeData(
+        useThumbBall: true,
+        activeColor: fluent.WidgetStateProperty.all(effectiveColor),
+      ),
+      child: fluent.Slider(
+        value: value,
+        min: min,
+        max: max,
+        onChanged: onChanged,
+        onChangeEnd: onChangeEnd,
+        vertical: false,
+      ),
     );
   }
 }

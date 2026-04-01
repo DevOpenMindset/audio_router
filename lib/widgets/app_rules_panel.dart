@@ -4,6 +4,7 @@ import 'package:fluent_ui/fluent_ui.dart';
 import 'package:macos_ui/macos_ui.dart' as macos;
 import 'package:provider/provider.dart';
 import 'adaptive_widgets.dart';
+import 'device_icon.dart';
 import '../models/audio_models.dart';
 import '../services/audio_service.dart';
 import '../services/theme_service.dart';
@@ -116,6 +117,7 @@ class _AppRuleCardState extends State<_AppRuleCard> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final color = widget.rule.enabled ? AppColors.accent : AppColors.textTertiary;
 
     return MouseRegion(
@@ -157,7 +159,7 @@ class _AppRuleCardState extends State<_AppRuleCard> {
                       style: AppTheme.inter(fontSize: 11, color: color),
                     ),
                     TextSpan(
-                      text: widget.rule.deviceName,
+                      text: l10n.localizeDeviceName(widget.rule.deviceName),
                       style: AppTheme.inter(
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
@@ -294,10 +296,11 @@ class _AddRuleButtonState extends State<_AddRuleButton> {
               value: d.id,
               child: Row(
                 children: [
-                  Text('🎧 ',
-                    style: AppTheme.inter(fontSize: 12)),
+                  DeviceIcon(device: d, size: 12),
+                  const SizedBox(width: 6),
                   Expanded(
-                    child: Text(d.shortName,
+                    child: Text(
+                      l10n.localizeDeviceName(d.shortName),
                       style: AppTheme.inter(fontSize: 12, color: AppColors.textPrimary),
                       overflow: TextOverflow.ellipsis),
                   ),

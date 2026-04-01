@@ -15,7 +15,7 @@ class AppLocalizations {
   }
 
   // ── General ──────────────────────────────────────────────
-  String get appName       => _p(en: 'AudioRouter (v1.2.39 OK)',   fr: 'AudioRouter (v1.2.39 OK)',   es: 'AudioRouter (v1.2.39 OK)');
+  String get appName       => _p(en: 'SoundShift',   fr: 'SoundShift',   es: 'SoundShift');
   String get settings      => _p(en: 'Settings',      fr: 'Paramètres',    es: 'Ajustes');
   // Tab bar
   String get appsTab       => _p(en: 'Apps',          fr: 'Apps',          es: 'Apps');
@@ -37,6 +37,13 @@ class AppLocalizations {
   String get defaultLabel  => _p(en: 'default',        fr: 'défaut',        es: 'defecto');
   String get connected     => _p(en: 'connected',      fr: 'connecté',      es: 'conectado');
   String get disconnected  => _p(en: 'disconnected',   fr: 'déconnecté',    es: 'desconectado');
+  String get speaker       => _p(en: 'Speaker',        fr: 'Haut-parleur',  es: 'Altavoz');
+  String get headphones    => _p(en: 'Headphones',     fr: 'Casque',        es: 'Auriculares');
+  String get audioDevice   => _p(en: 'Audio device',   fr: 'Périphérique',   es: 'Dispositivo');
+  String get unmuteAll     => _p(en: 'Unmute all',     fr: 'Tout activer',   es: 'Activar todo');
+  String get muteAll       => _p(en: 'Mute all',       fr: 'Tout couper',    es: 'Silenciar todo');
+  String get openSoundSettings => _p(en: 'Open OS sound settings', fr: 'Paramètres son système', es: 'Ajustes de sonido');
+  String get setDefault    => _p(en: 'Set as default', fr: 'Définir par défaut', es: 'Predeterminado');
 
   // ── Duck rules ────────────────────────────────────────────
   String get autoDuck      => _p(en: 'Auto-Duck',     fr: 'Auto-Duck',     es: 'Auto-Duck');
@@ -68,8 +75,8 @@ class AppLocalizations {
   String get darkMode      => _p(en: 'Dark mode',     fr: 'Mode sombre',   es: 'Modo oscuro');
   String get darkModeDesc  => _p(en: 'Toggle between dark and light theme', fr: 'Basculer entre thème sombre et clair', es: 'Alternar entre tema oscuro y claro');
   String get launchStartup => _p(en: 'Launch at startup', fr: 'Lancer au démarrage', es: 'Iniciar al arranque');
-  String get launchStartupDescWin => _p(en: 'Start AudioRouter when Windows starts', fr: 'Démarrer AudioRouter au lancement de Windows', es: 'Iniciar AudioRouter al arrancar Windows');
-  String get launchStartupDescMac => _p(en: 'Start AudioRouter when macOS starts', fr: 'Démarrer AudioRouter au lancement de macOS', es: 'Iniciar AudioRouter al arrancar macOS');
+  String get launchStartupDescWin => _p(en: 'Start SoundShift when Windows starts', fr: 'Démarrer SoundShift au lancement de Windows', es: 'Iniciar SoundShift al arrancar Windows');
+  String get launchStartupDescMac => _p(en: 'Start SoundShift when macOS starts', fr: 'Démarrer SoundShift au lancement de macOS', es: 'Iniciar SoundShift al arrancar macOS');
   String get interfaceStyle => _p(en: 'Interface style', fr: 'Style d\'interface', es: 'Estilo de interfaz');
   String get interfaceStyleDesc => _p(en: 'Choose between Windows 11 and macOS look', fr: 'Choisir entre l\'apparence Windows 11 et macOS', es: 'Elegir entre apariencia Windows 11 y macOS');
   String get profiles      => _p(en: 'Profiles',      fr: 'Profils',       es: 'Perfiles');
@@ -117,11 +124,11 @@ class AppLocalizations {
 
   // ── Donation ──────────────────────────────────────────────
   String get supportProject => _p(en: 'Support the project', fr: 'Soutenir le projet', es: 'Apoyar el proyecto');
-  String get donateTitle    => _p(en: 'Support AudioRouter ❤️', fr: 'Soutenir AudioRouter ❤️', es: 'Apoyar AudioRouter ❤️');
+  String get donateTitle    => _p(en: 'Support SoundShift ❤️', fr: 'Soutenir SoundShift ❤️', es: 'Apoyar SoundShift ❤️');
   String get donateBody     => _p(
-    en: 'AudioRouter is free and open source.\nIf you find it useful, consider buying me a coffee or making a small donation — it helps a lot!',
-    fr: 'AudioRouter est gratuit et open source.\nSi vous le trouvez utile, offrez-moi un café ou faites un petit don — ça aide beaucoup !',
-    es: 'AudioRouter es gratuito y de código abierto.\nSi te resulta útil, invítame a un café o haz una pequeña donación — ¡ayuda mucho!',
+    en: 'SoundShift is free and open source.\nIf you find it useful, consider buying me a coffee or making a small donation — it helps a lot!',
+    fr: 'SoundShift est gratuit et open source.\nSi vous le trouvez utile, offrez-moi un café ou faites un petit don — ça aide beaucoup !',
+    es: 'SoundShift es gratuito y de código abierto.\nSi te resulta útil, invítame a un café o haz una pequeña donación — ¡ayuda mucho!',
   );
   String get donateCoffee   => _p(en: 'Buy Me a Coffee', fr: 'Buy Me a Coffee', es: 'Buy Me a Coffee');
   String get maybeLater     => _p(en: 'Maybe later', fr: 'Peut-être plus tard', es: 'Quizás más tarde');
@@ -137,9 +144,9 @@ class AppLocalizations {
   // ── Auto-Update ───────────────────────────────────────────
   String get updateAvailable => _p(en: 'Update Available', fr: 'Mise à jour disponible', es: 'Actualización Disponible');
   String get updateBody      => _p(
-    en: 'A new version of AudioRouter is available on GitHub.',
-    fr: 'Une nouvelle version d\'AudioRouter est disponible sur GitHub.',
-    es: 'Hay una nueva versión de AudioRouter disponible en GitHub.',
+    en: 'A new version of SoundShift is available on GitHub.',
+    fr: 'Une nouvelle version d\'SoundShift est disponible sur GitHub.',
+    es: 'Hay una nueva versión de SoundShift disponible en GitHub.',
   );
   String get downloadUpdate  => _p(en: 'Download', fr: 'Télécharger', es: 'Descargar');
   String get installUpdate   => _p(en: 'Install Update', fr: 'Installer la mise à jour', es: 'Instalar actualización');
@@ -151,6 +158,22 @@ class AppLocalizations {
   String get currentVersion  => _p(en: 'Version', fr: 'Version', es: 'Versión');
   String get whatsNew        => _p(en: "What's new", fr: 'Nouveautés', es: 'Novedades');
   String get seeChangelog    => _p(en: 'See changelog', fr: 'Voir le changelog', es: 'Ver changelog');
+
+  /// Localize common system-provided device names if they are in English.
+  String localizeDeviceName(String name) {
+    if (lang == 'en') return name;
+    final n = name.toLowerCase();
+    if (n.startsWith('speakers')) {
+      return name.replaceFirst(RegExp('speakers', caseSensitive: false), speaker);
+    }
+    if (n.startsWith('speaker')) {
+      return name.replaceFirst(RegExp('speaker', caseSensitive: false), speaker);
+    }
+    if (n.contains('headphones') || n.contains('headset')) {
+      return name.replaceFirst(RegExp('headphones|headset', caseSensitive: false), headphones);
+    }
+    return name;
+  }
 }
 
 

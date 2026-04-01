@@ -1,103 +1,65 @@
-# AudioRouter
+# SoundShift 🚀
 
-Route audio per-app to different output devices. Simple. Clean. No bullshit.
+**SoundShift** is a minimalist, open-source audio control center for Windows and macOS. It allows you to route specific applications to different audio outputs with zero friction.
 
-Spotify → Enceintes. Discord → Casque. YouTube → Écouteurs. One click.
+![SoundShift App](https://github.com/DevOpenMindset/audio_router_releases/raw/main/screenshots/app_main.png) _(Replace with actual URL or local path once pushed)_
 
-## Screenshot
+## ✨ Key Features
 
-The app runs as a tray popup — click the icon, pick your routing, done.
+- **🎯 Smart App Routing**: Force any app (browser, game, music player) to a specific output device (headset, speakers, monitor).
+- **🌗 Native Look & Feel**: Beautiful, lightweight UI designed to feel native on both Windows 11 and macOS Sonoma.
+- **🎨 Adaptive UI**: The application interface dynamically tints itself based on the dominant color of the active app's icon.
+- **⚡ App Rules**: Automatically route your favorite apps as soon as they open. Set it once, forget it.
+- **🔊 Auto-Ducking**: Automatically lower your background music when a voice call or specific app becomes active.
+- **🏗 Multi-Profile**: Create and switch between entire audio routing configurations (e.g., "Gaming Mode", "Work Mode").
+- **💨 Lightweight**: Built with Google's Flutter for high performance and low resource consumption.
 
-## Architecture
+## 📥 Installation
 
-```
-lib/
-├── main.dart                          # Entry point, window config
-├── core/
-│   └── native_audio_bridge.dart       # Win32 FFI docs & interface
-├── models/
-│   └── audio_models.dart              # AudioDevice, AudioSession, RoutingProfile
-├── services/
-│   ├── audio_service.dart             # WASAPI interface (sim layer for dev)
-│   └── profile_service.dart           # Saved routing presets
-├── screens/
-│   └── home_screen.dart               # Main UI assembly
-├── theme/
-│   └── app_theme.dart                 # Colors, typography
-└── widgets/
-    ├── app_icon.dart                  # Custom painted app icons
-    ├── device_footer.dart             # Detected devices bar
-    ├── device_selector.dart           # Custom dropdown (no Material)
-    ├── peak_level_bar.dart            # Audio level indicator
-    ├── profile_bar.dart               # Profile selector chips
-    ├── session_card.dart              # Per-app routing card
-    └── title_bar.dart                 # Frameless window title bar
-```
+### Windows
+1. Download the latest `SoundShift-Setup-Win.exe` from the [Releases](https://github.com/DevOpenMindset/audio_router_releases/releases) page.
+2. Run the installer.
+3. SoundShift will launch and sit in your system tray.
 
-## Design Principles
+### macOS
+1. Download the `SoundShift-MacOS.dmg` from the [Releases](https://github.com/DevOpenMindset/audio_router_releases/releases) page.
+2. Drag and drop to your Applications folder.
+3. Open SoundShift from your Applications (you may need to grant accessibility permissions for audio control).
 
-- **Zero Material widgets** in the UI layer — everything is custom painted
-- Dark theme only, tray-app aesthetic
-- Feels native to Windows, not like a Flutter app
-- 380x540px popup, frameless, always-on-top
+## 🛠 For Developers
 
-## Setup
+### Building from source
+You need the Flutter SDK installed on your machine.
 
-### Prerequisites
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/DevOpenMindset/audio_router.git
+   cd audio_router
+   ```
+2. Get dependencies:
+   ```bash
+   flutter pub get
+   ```
+3. Run the app:
+   ```bash
+   flutter run -d windows # for Windows
+   flutter run -d macos   # for macOS
+   ```
 
-- Flutter 3.16+ with Windows desktop enabled
-- Windows 10/11
-- Internet connection on first run (Google Fonts downloads Inter automatically)
+## 🤝 Contributing
 
-### Run
+Contributions are what make the open-source community such an amazing place to learn, inspire, and create. Any contributions you make are **greatly appreciated**.
 
-```bash
-flutter config --enable-windows-desktop
-flutter pub get
-flutter run -d windows
-```
+1. Fork the Project
+2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the Branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
-### Build
+## 📄 License
 
-```bash
-flutter build windows --release
-```
+Distributed under the MIT License. See `LICENSE` for more information.
 
-Output: `build/windows/x64/runner/Release/audio_router.exe`
+## ❤️ Support
 
-## Backend Implementation
-
-The `AudioService` currently uses a simulation layer for UI development.
-To connect to real Windows audio:
-
-1. Implement the FFI bindings documented in `lib/core/native_audio_bridge.dart`
-2. Replace simulation methods in `AudioService` with native calls
-3. Key Win32 APIs needed:
-   - `IMMDeviceEnumerator` — enumerate output devices
-   - `IAudioSessionManager2` — list apps producing audio
-   - `IAudioMeterInformation` — peak level meters
-   - `IPolicyConfig` — per-app audio routing (undocumented but stable)
-
-## Roadmap
-
-- [x] UI with custom widgets
-- [x] Simulated audio backend
-- [x] Profile system (Gaming/Work/Music presets)
-- [ ] Native Win32 audio backend via FFI
-- [ ] System tray integration
-- [ ] Auto-start with Windows
-- [ ] Per-app volume control
-- [ ] Hotkey support for profile switching
-- [ ] Auto-detect new audio sessions
-- [ ] Remember routing across reboots
-
-## Tech Stack
-
-- **UI**: Flutter Desktop (Windows)
-- **Backend**: Dart + dart:ffi + win32 package
-- **Audio API**: Windows WASAPI / COM
-- **State**: Provider + ChangeNotifier
-
-## License
-
-MIT
+If you find SoundShift useful, consider [buying me a coffee](https://www.buymeacoffee.com/openmindset) to support further development!

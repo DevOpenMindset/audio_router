@@ -22,7 +22,7 @@
 
 ### Fixed
 - Mirror devices disappearing after the 2-second session refresh
-- `audio_router` process no longer shows up as an app card when mirrors are active
+- `soundshift` process no longer shows up as an app card when mirrors are active
 - Apps producing no audio are filtered from the session list
 - Auto-update now relaunches the app automatically after silent install
 
@@ -38,7 +38,7 @@
 ## [1.2.9] - 2026-03-27
 ### Added
 - WASAPI loopback mirror engine (Windows) for multi-output routing
-- `audio_router` added to system blocklist in C++ and Dart session filters
+- `soundshift` added to system blocklist in C++ and Dart session filters
 
 ## [1.2.8] - 2026-03-26
 ### Added

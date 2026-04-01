@@ -155,9 +155,9 @@ class AudioService extends ChangeNotifier {
     // Windows Shell UI processes — system sounds / shell animations
     'shellexperiencehost', 'startmenuexperiencehost', 'lockapp',
     'runtimebroker', 'applicationframehost', 'wwahost',
-    // Hide ourselves — mirror render threads register audio_router as a
+    // Hide ourselves — mirror render threads register soundshift as a
     // WASAPI session on the target device; we must not show it in the UI.
-    'audio_router',
+    'soundshift',
   };
 
   void _refreshSessions() {

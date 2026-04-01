@@ -35,7 +35,7 @@ workflows:
       - name: Embed dylib in app bundle
         script: |
           cp macos/audio_backend/libaudio_backend.dylib \
-             "build/macos/Build/Products/Release/audio_router.app/Contents/Frameworks/libaudio_backend.dylib"
+             "build/macos/Build/Products/Release/soundshift.app/Contents/Frameworks/libaudio_backend.dylib"
 
       - name: Package DMG (hdiutil)
         script: |
@@ -44,13 +44,13 @@ workflows:
           mkdir -p "dmg_source"
           
           # Copy the .app into the source folder
-          cp -R "build/macos/Build/Products/Release/audio_router.app" "dmg_source/"
+          cp -R "build/macos/Build/Products/Release/soundshift.app" "dmg_source/SoundShift.app"
           
           # Create a shortcut to the Applications folder
           ln -s /Applications "dmg_source/Applications"
           
           # Use native macOS hdiutil to create the DMG
-          hdiutil create -volname "AudioRouter" -srcfolder "dmg_source" -ov -format UDZO "AudioRouter-${VERSION}.dmg"
+          hdiutil create -volname "SoundShift" -srcfolder "dmg_source" -ov -format UDZO "SoundShift-${VERSION}.dmg"
 
       - name: Upload DMG to GitHub Release
         script: |
@@ -59,9 +59,9 @@ workflows:
           # Extract changelog notes for this version
           NOTES=$(awk "/^\#\# \[${VERSION}\]/{found=1; next} found && /^\#\# \[/{exit} found{print}" CHANGELOG.md)
           if [ -z "$NOTES" ]; then NOTES="Release $CM_TAG"; fi
-          if ! gh release upload "$CM_TAG" "AudioRouter-${VERSION}.dmg" --repo DevOpenMindset/audio_router_releases --clobber; then
+          if ! gh release upload "$CM_TAG" "SoundShift-${VERSION}.dmg" --repo DevOpenMindset/audio_router_releases --clobber; then
             echo "Release not found, creating it since Codemagic finished first..."
-            gh release create "$CM_TAG" "AudioRouter-${VERSION}.dmg" \
+            gh release create "$CM_TAG" "SoundShift-${VERSION}.dmg" \
               --repo DevOpenMindset/audio_router_releases \
               -t "Release $CM_TAG" \
               --notes "$NOTES"

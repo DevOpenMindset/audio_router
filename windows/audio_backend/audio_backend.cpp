@@ -335,9 +335,9 @@ static void CollectSessionsFromDevice(IMMDevice* pDevice, std::set<DWORD>& seenP
                 L"wininit", L"fontdrvhost", L"sihost", L"ctfmon",
                 L"rundll32", L"taskhostw", L"backgroundtaskhost",
                 L"searchhost", L"searchindexer",
-                // Hide ourselves — mirror render threads register audio_router
+                // Hide ourselves — mirror render threads register soundshift
                 // as an audio session on the target device.
-                L"audio_router", nullptr
+                L"soundshift", nullptr
             };
             bool blocked = false;
             for (int bi = 0; kSysBlocklist[bi]; bi++) {
@@ -794,8 +794,8 @@ AUDIO_API int32_t audio_set_device_volume(const wchar_t* device_id, float volume
 
 // ─── Auto-Start ─────────────────────────────────────────────
 
-static const wchar_t* AUTOSTART_KEY = L"Software\\Microsoft\\Windows\\CurrentVersion\\Run";
-static const wchar_t* AUTOSTART_VALUE = L"AudioRouter";
+static const wchar_t* AUTOSTART_KEY = L"Software\\Microsoft\\Windows\\CurrentVersion\\Run"; // Configuration for Autostart
+static const wchar_t* AUTOSTART_VALUE = L"SoundShift";
 
 AUDIO_API int32_t audio_set_autostart(int32_t enabled) {
     HKEY hKey;

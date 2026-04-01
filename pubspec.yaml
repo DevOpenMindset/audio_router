@@ -1,5 +1,5 @@
-name: audio_router
-description: Route audio per-app to different outputs. Simple. Clean.
+name: soundshift
+description: A minimalist, intelligent audio control center for Windows and macOS.
 publish_to: 'none'
 version: 1.2.40+1
 

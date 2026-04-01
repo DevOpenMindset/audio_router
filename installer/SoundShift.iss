@@ -1,8 +1,8 @@
-#define MyAppName "AudioRouter"
-#define MyAppVersion "1.2.26"
-#define MyAppPublisher "AudioRouter"
+#define MyAppName "SoundShift"
+#define MyAppVersion "1.2.40"
+#define MyAppPublisher "SoundShift"
 #define MyAppURL "https://audiorouter.app"
-#define MyAppExeName "audio_router.exe"
+#define MyAppExeName "SoundShift.exe"
 #define BuildDir "..\build\windows\x64\runner\Release"
 
 [Setup]
@@ -18,7 +18,7 @@ DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
 LicenseFile=
 OutputDir=.\output
-OutputBaseFilename=AudioRouter-Setup-{#MyAppVersion}
+OutputBaseFilename=SoundShift-Setup-{#MyAppVersion}
 SetupIconFile=..\assets\tray_icon.ico
 Compression=lzma2/ultra64
 SolidCompression=yes
@@ -54,7 +54,7 @@ Source: "{#BuildDir}\data\*"; DestDir: "{app}\data"; Flags: ignoreversion recurs
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
-Name: "{userdesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
+Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Registry]
 ; Autostart option (only if user chose it during install)

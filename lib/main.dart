@@ -30,7 +30,7 @@ Future<void> _initSystemTray() async {
     fallbackIcon = '$exeDir/../Resources/app_icon.png';
   } else if (Platform.isLinux) {
     iconPath = '$exeDir/data/flutter_assets/assets/tray_icon.png';
-    fallbackIcon = '/usr/share/icons/hicolor/256x256/apps/audio_router.png';
+    fallbackIcon = '/usr/share/icons/hicolor/256x256/apps/soundshift.png';
   } else {
     iconPath = '$exeDir\\data\\flutter_assets\\assets\\tray_icon.ico';
     fallbackIcon = '$exeDir\\windows\\runner\\resources\\app_icon.ico';
@@ -42,9 +42,9 @@ Future<void> _initSystemTray() async {
 
   try {
     await _systemTray.initSystemTray(
-      title: 'AudioRouter',
+      title: 'SoundShift',
       iconPath: finalIconPath ?? fallbackIcon,
-      toolTip: 'AudioRouter — per-app audio routing',
+      toolTip: 'SoundShift — per-app audio routing',
     );
   } catch (e) {
     debugPrint('Failed to init system tray: $e');
@@ -118,13 +118,13 @@ void main() async {
 
   await _initSystemTray();
 
-  runApp(AudioRouterApp(prefs: prefs));
+  runApp(SoundShiftApp(prefs: prefs));
 }
 
-class AudioRouterApp extends StatelessWidget {
+class SoundShiftApp extends StatelessWidget {
   final SharedPreferences prefs;
   
-  const AudioRouterApp({super.key, required this.prefs});
+  const SoundShiftApp({super.key, required this.prefs});
 
   @override
   Widget build(BuildContext context) {
@@ -155,7 +155,7 @@ class AudioRouterApp extends StatelessWidget {
           // fluent_ui / macos_ui internal widgets keep their required ancestors.
           if (Platform.isMacOS) {
             return macos.MacosApp(
-              title: 'AudioRouter',
+              title: 'SoundShift',
               debugShowCheckedModeBanner: false,
               theme: AppTheme.macosCurrent,
               home: macos.MacosWindow(child: const HomeScreen()),
@@ -163,7 +163,7 @@ class AudioRouterApp extends StatelessWidget {
           }
           if (Platform.isLinux) {
             return material.MaterialApp(
-              title: 'AudioRouter',
+              title: 'SoundShift',
               debugShowCheckedModeBanner: false,
               theme: AppTheme.linuxLightTheme,
               darkTheme: AppTheme.linuxDarkTheme,
@@ -174,7 +174,7 @@ class AudioRouterApp extends StatelessWidget {
             );
           }
           return FluentApp(
-            title: 'AudioRouter',
+            title: 'SoundShift',
             debugShowCheckedModeBanner: false,
             theme: AppTheme.current,
             // When the user picks macOS style on Windows hardware, inject a

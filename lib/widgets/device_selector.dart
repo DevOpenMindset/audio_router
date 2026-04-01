@@ -1,6 +1,7 @@
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:provider/provider.dart';
 import 'adaptive_widgets.dart';
+import 'device_icon.dart';
 import '../theme/app_theme.dart';
 import '../models/audio_models.dart';
 import '../platform.dart';
@@ -38,14 +39,11 @@ class DeviceSelector extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            CustomPaint(
-              size: const Size(12, 12),
-              painter: _HeadphoneIconPainter(color: AppColors.textTertiary),
-            ),
+            DeviceIcon(device: device, size: 12),
             const SizedBox(width: 6),
             Flexible(
               child: Text(
-                device.shortName,
+                l10n.localizeDeviceName(device.shortName),
                 style: AppTheme.inter(fontSize: 12, color: AppColors.textPrimary),
                 overflow: TextOverflow.ellipsis,
               ),
@@ -73,37 +71,4 @@ class DeviceSelector extends StatelessWidget {
       },
     );
   }
-}
-
-class _HeadphoneIconPainter extends CustomPainter {
-  final Color color;
-  _HeadphoneIconPainter({required this.color});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.2
-      ..strokeCap = StrokeCap.round;
-
-    final w = size.width;
-    final h = size.height;
-
-    final arcRect = Rect.fromLTWH(w * 0.1, h * 0.05, w * 0.8, h * 0.7);
-    canvas.drawArc(arcRect, 3.14, 3.14, false, paint);
-
-    canvas.drawRRect(
-      RRect.fromLTRBR(w * 0.05, h * 0.5, w * 0.25, h * 0.85, const Radius.circular(2)),
-      paint,
-    );
-
-    canvas.drawRRect(
-      RRect.fromLTRBR(w * 0.75, h * 0.5, w * 0.95, h * 0.85, const Radius.circular(2)),
-      paint,
-    );
-  }
-
-  @override
-  bool shouldRepaint(_HeadphoneIconPainter old) => old.color != color;
 }

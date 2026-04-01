@@ -430,7 +430,7 @@ AUDIO_API void audio_stop_all_mirrors(void) {
 static void get_autostart_path(char* buf, size_t buflen) {
     const char *home = getenv("HOME");
     if (home) {
-        snprintf(buf, buflen, "%s/.config/autostart/audio_router.desktop", home);
+        snprintf(buf, buflen, "%s/.config/autostart/soundshift.desktop", home);
     } else {
         buf[0] = '\0';
     }
@@ -441,7 +441,7 @@ static void get_exe_path(char* buf, size_t buflen) {
     if (len > 0) {
         buf[len] = '\0';
     } else {
-        snprintf(buf, buflen, "/usr/bin/audio_router");
+        snprintf(buf, buflen, "/usr/bin/soundshift");
     }
 }
 
@@ -468,7 +468,7 @@ AUDIO_API int32_t audio_set_autostart(int32_t enabled) {
             "Name=AudioRouter\n"
             "Comment=Per-app audio routing\n"
             "Exec=%s\n"
-            "Icon=audio_router\n"
+            "Icon=soundshift\n"
             "Terminal=false\n"
             "X-GNOME-Autostart-enabled=true\n"
             "StartupNotify=false\n"

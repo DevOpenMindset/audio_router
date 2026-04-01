@@ -24,9 +24,15 @@ class DeviceFooter extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     context.watch<ThemeService>();
+    final themeService = context.read<ThemeService>();
     final l10n = context.l10n;
     final activeDevices = devices.where((d) => d.isActive).toList();
     final inactiveDevices = devices.where((d) => !d.isActive).toList();
+    
+    // Get OS accent color if sync is enabled, otherwise use default accent
+    final accentColor = themeService.useOSAccent && themeService.accentColor != null
+        ? Color(themeService.accentColor!.value)
+        : AppColors.accent;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -43,15 +49,17 @@ class DeviceFooter extends StatelessWidget {
             // Mute all toggle
             _MiniActionButton(
               label: context.watch<AudioService>().allMuted ? '🔇' : '🔊',
-              tooltip: context.read<AudioService>().allMuted ? 'Unmute all' : 'Mute all (Ctrl+Alt+0)',
+              tooltip: context.read<AudioService>().allMuted ? l10n.unmuteAll : l10n.muteAll,
               onTap: () => context.read<AudioService>().toggleMuteAll(),
+              accentColor: accentColor,
             ),
             const SizedBox(width: 6),
             // Open OS sound settings
             _MiniActionButton(
               label: '⚙',
-              tooltip: 'Open OS sound settings',
+              tooltip: l10n.openSoundSettings,
               onTap: () => context.read<AudioService>().openSoundSettings(),
+              accentColor: accentColor,
             ),
           ],
         ),
@@ -108,15 +116,29 @@ class _DeviceVolumeRowState extends State<_DeviceVolumeRow> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final audioService = context.read<AudioService>();
+    final themeService = context.read<ThemeService>();
     final device = widget.device;
     if (_expanded && !_balanceLoaded) _loadBalance();
+    
+    // Get OS accent color if sync is enabled, otherwise use default accent
+    final accentColor = themeService.useOSAccent && themeService.accentColor != null
+        ? Color(themeService.accentColor!.value)
+        : AppColors.accent;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Row(
-          children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: accentColor.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(6),
+            border: device.isDefault ? Border.all(color: accentColor.withValues(alpha: 0.3), width: 0.5) : null,
+          ),
+          child: Row(
+            children: [
             // Expand toggle
             GestureDetector(
               onTap: () => setState(() { _expanded = !_expanded; _balanceLoaded = false; }),
@@ -131,7 +153,7 @@ class _DeviceVolumeRowState extends State<_DeviceVolumeRow> {
             Container(
               width: 4, height: 4,
               decoration: BoxDecoration(
-                color: device.isDefault ? AppColors.accent : AppColors.active,
+                color: device.isDefault ? accentColor : AppColors.active,
                 shape: BoxShape.circle,
               ),
             ),
@@ -142,10 +164,10 @@ class _DeviceVolumeRowState extends State<_DeviceVolumeRow> {
               child: GestureDetector(
                 onTap: () => setState(() { _expanded = !_expanded; _balanceLoaded = false; }),
                 child: Text(
-                  device.shortName,
+                  l10n.localizeDeviceName(device.shortName),
                   style: AppTheme.inter(
                     fontSize: 11,
-                    color: device.isDefault ? AppColors.accent : AppColors.textSecondary,
+                    color: device.isDefault ? accentColor : AppColors.textSecondary,
                     fontWeight: device.isDefault ? FontWeight.w500 : FontWeight.w400,
                   ),
                   overflow: TextOverflow.ellipsis,
@@ -156,7 +178,7 @@ class _DeviceVolumeRowState extends State<_DeviceVolumeRow> {
             // Peak level
             PeakLevelBar(
               level: widget.peak,
-              color: device.isDefault ? AppColors.accent : AppColors.active,
+              color: device.isDefault ? accentColor : AppColors.active,
               width: 28, height: 3,
             ),
             const SizedBox(width: 6),
@@ -179,7 +201,8 @@ class _DeviceVolumeRowState extends State<_DeviceVolumeRow> {
                 style: AppTheme.inter(fontSize: 11, color: AppColors.textTertiary, fontWeight: FontWeight.w500),
               ),
             ),
-          ],
+            ],
+          ),
         ),
         // ── Expanded section: set default + balance ──
         if (_expanded) ...[
@@ -192,8 +215,9 @@ class _DeviceVolumeRowState extends State<_DeviceVolumeRow> {
                 if (!device.isDefault)
                   _MiniActionButton(
                     label: '★',
-                    tooltip: 'Set as default',
+                    tooltip: l10n.setDefault,
                     onTap: () => audioService.setDefaultDevice(device.id),
+                    accentColor: accentColor,
                   ),
                 if (!device.isDefault) const SizedBox(width: 8),
                 // Balance label
@@ -236,7 +260,13 @@ class _MiniActionButton extends StatefulWidget {
   final String label;
   final String tooltip;
   final VoidCallback onTap;
-  const _MiniActionButton({required this.label, required this.tooltip, required this.onTap});
+  final Color accentColor;
+  const _MiniActionButton({
+    required this.label,
+    required this.tooltip,
+    required this.onTap,
+    required this.accentColor,
+  });
   @override
   State<_MiniActionButton> createState() => _MiniActionButtonState();
 }
@@ -257,13 +287,13 @@ class _MiniActionButtonState extends State<_MiniActionButton> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
             decoration: BoxDecoration(
-              color: _hovered ? AppColors.accent.withValues(alpha: 0.15) : AppColors.bgSecondary,
+              color: _hovered ? widget.accentColor.withValues(alpha: 0.15) : AppColors.bgSecondary,
               borderRadius: BorderRadius.circular(4),
               border: Border.all(color: AppColors.border, width: 0.5),
             ),
             child: Text(
               widget.label,
-              style: AppTheme.inter(fontSize: 10, color: AppColors.accent, fontWeight: FontWeight.w600),
+              style: AppTheme.inter(fontSize: 10, color: widget.accentColor, fontWeight: FontWeight.w600),
             ),
           ),
         ),
@@ -278,6 +308,7 @@ class _InactiveTag extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
@@ -298,7 +329,7 @@ class _InactiveTag extends StatelessWidget {
           ),
           const SizedBox(width: 5),
           Text(
-            device.shortName,
+            l10n.localizeDeviceName(device.shortName),
             style: AppTheme.inter(
               fontSize: 11,
               color: AppColors.textTertiary,

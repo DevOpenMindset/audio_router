@@ -104,7 +104,7 @@
 /// ```dart
 /// final systemTray = SystemTray();
 /// await systemTray.initSystemTray(
-///   title: 'AudioRouter',
+///   title: 'SoundShift',
 ///   iconPath: 'assets/icon.ico',
 /// );
 /// systemTray.registerSystemTrayEventHandler((eventName) {
