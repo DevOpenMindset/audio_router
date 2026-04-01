@@ -28,7 +28,7 @@
 
 ## [1.2.12] - 2026-03-28
 ### Added
-- Separate public releases repository (`audio_router_releases`) — source stays private
+- Separate public releases repository (`audio_router_releases`) — source code now open source (MIT)
 - macOS DMG built and published via Codemagic CI
 
 ### Fixed
