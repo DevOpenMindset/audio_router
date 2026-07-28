@@ -76,6 +76,23 @@ AUDIO_API int32_t audio_set_mute(uint32_t process_id, int32_t muted);
 AUDIO_API float   audio_get_device_volume(const uint16_t* device_id);
 AUDIO_API int32_t audio_set_device_volume(const uint16_t* device_id, float volume);
 
+// ─── Device Balance / Default Device ─────────────────────────
+// Declared here so the definitions in audio_backend.mm get C linkage;
+// without these declarations the symbols are C++-mangled and Dart FFI
+// lookups fail, dropping the app into simulation mode.
+
+AUDIO_API float   audio_get_device_balance(const uint16_t* device_id);
+AUDIO_API int32_t audio_set_device_balance(const uint16_t* device_id, float balance);
+AUDIO_API int32_t audio_set_default_device(const uint16_t* device_id);
+
+// ─── OS Integration ──────────────────────────────────────────
+
+/// Open the macOS System Settings sound pane. Returns 0 on success.
+AUDIO_API int32_t audio_open_sound_settings(void);
+
+/// System accent colour as 0xAARRGGBB, or 0 if unavailable.
+AUDIO_API uint32_t audio_get_accent_color(void);
+
 // ─── App Icon ───────────────────────────────────────────────
 
 /// Extract the process's icon as 32×32 RGBA pixels via NSWorkspace.

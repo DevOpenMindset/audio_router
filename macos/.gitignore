@@ -2,6 +2,9 @@
 **/Flutter/ephemeral/
 **/Pods/
 
+# Built native backend (compile with audio_backend/build.sh)
+audio_backend/*.dylib
+
 # Xcode-related
 **/dgph
 **/xcuserdata/
