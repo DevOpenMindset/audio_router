@@ -34,8 +34,16 @@ workflows:
 
       - name: Embed dylib in app bundle
         script: |
+          APP="build/macos/Build/Products/Release/soundshift.app"
           cp macos/audio_backend/libaudio_backend.dylib \
-             "build/macos/Build/Products/Release/soundshift.app/Contents/Frameworks/libaudio_backend.dylib"
+             "$APP/Contents/Frameworks/libaudio_backend.dylib"
+          # Adding a file after flutter build breaks the app's code seal, and
+          # Apple Silicon refuses to launch apps with an invalid signature
+          # ("app is damaged"). Re-sign (ad-hoc, same as the Flutter build)
+          # after embedding.
+          codesign --force --sign - "$APP/Contents/Frameworks/libaudio_backend.dylib"
+          codesign --force --deep --sign - "$APP"
+          codesign --verify --deep --strict "$APP"
 
       - name: Package DMG (hdiutil)
         script: |
