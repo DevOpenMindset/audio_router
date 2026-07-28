@@ -6,7 +6,9 @@ import 'package:macos_ui/macos_ui.dart' as macos;
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:window_manager/window_manager.dart';
+import '../models/audio_models.dart';
 import '../services/audio_service.dart';
+import '../services/panel_controller.dart';
 import '../services/theme_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/title_bar.dart';
@@ -87,6 +89,24 @@ class _HomeScreenState extends State<HomeScreen> with WindowListener {
   }
 
   @override
+  void onWindowBlur() {
+    // Panel behavior on macOS: losing focus closes the popover, like any
+    // menu-bar panel. Routing keeps running — only the window hides.
+    if (PanelController.enabled) PanelController.hideFromBlur();
+  }
+
+  @override
+  void onWindowClose() async {
+    // Native close button: window has setPreventClose(true), so hide to the
+    // tray instead of quitting (Quit in the tray menu disables preventClose
+    // first, in which case the window really closes and this must not hide).
+    if (await windowManager.isPreventClose()) {
+      _audioService?.resetAllRoutes();
+      await windowManager.hide();
+    }
+  }
+
+  @override
   void onWindowResize() {
     _saveWindowSizeTimer?.cancel();
     _saveWindowSizeTimer = Timer(const Duration(milliseconds: 500), () async {
@@ -161,16 +181,14 @@ class _HomeScreenState extends State<HomeScreen> with WindowListener {
         backgroundColor: AppColors.bgPrimary,
         toolBar: macos.ToolBar(
           height: 52,
+          // The native title-bar buttons remain visible with
+          // TitleBarStyle.hidden, so no custom traffic lights here — just a
+          // draggable spacer that clears them. Close is handled by
+          // onWindowClose below (window has setPreventClose(true)).
           leading: GestureDetector(
             behavior: HitTestBehavior.translucent,
             onPanStart: (_) => windowManager.startDragging(),
-            child: Padding(
-              padding: const EdgeInsets.only(left: 8),
-              child: MacosTrafficLights(
-                onClose: () async { audioService.resetAllRoutes(); await windowManager.hide(); },
-                onMinimize: () => windowManager.minimize(),
-              ),
-            ),
+            child: const SizedBox(width: 70, height: double.infinity),
           ),
           title: _MacTabBar(
             tabs: [l10n.appsTab, l10n.rulesTab, l10n.settingsTab],
@@ -182,6 +200,10 @@ class _HomeScreenState extends State<HomeScreen> with WindowListener {
             selected: _tab,
             onChanged: _setTab,
           ),
+          // ToolBar clips its title to titleWidth (default 150), which cut the
+          // third tab off outside the pill. Wide enough for all three tabs in
+          // any supported language.
+          titleWidth: 360,
           centerTitle: true,
           dividerColor: AppColors.border,
           actions: [
@@ -228,6 +250,17 @@ class _HomeScreenState extends State<HomeScreen> with WindowListener {
     return Consumer<AudioService>(
       builder: (context, audio, _) {
         final sessions = audio.activeSessions;
+        final deviceVolumesFold = Padding(
+          padding: const EdgeInsets.only(top: 10),
+          child: _DeviceVolumesFold(
+            devices: audio.devices,
+            sessions: sessions,
+            defaultDeviceId: audio.devices
+                .where((d) => d.isDefault)
+                .map((d) => d.id)
+                .firstOrNull,
+          ),
+        );
         final child = Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -239,7 +272,10 @@ class _HomeScreenState extends State<HomeScreen> with WindowListener {
                 final device = audio.getDeviceForSession(session);
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 6),
+                  // Keyed by display name (the grouping key) so state like the
+                  // fetched app icon follows the session when the list reorders.
                   child: SessionCard(
+                    key: ValueKey(session.displayName),
                     session: session,
                     devices: audio.devices,
                     assignedDevice: device,
@@ -267,6 +303,7 @@ class _HomeScreenState extends State<HomeScreen> with WindowListener {
                   ),
                 );
               }),
+            deviceVolumesFold,
           ],
         );
         return _scroll(child, scrollCtrl);
@@ -335,6 +372,99 @@ class _HomeScreenState extends State<HomeScreen> with WindowListener {
 }
 
 // ════════════════════════════════════════════════════════════════
+// Collapsible device-volumes section (Apps tab)
+// ════════════════════════════════════════════════════════════════
+
+/// Folded-away access to each hardware device's system (master) volume from
+/// the Apps tab, so it's reachable without switching to Settings. Collapsed
+/// by default; the state persists across restarts.
+class _DeviceVolumesFold extends StatefulWidget {
+  final List<AudioDevice> devices;
+  final List<AudioSession> sessions;
+  final String? defaultDeviceId;
+
+  const _DeviceVolumesFold({
+    required this.devices,
+    required this.sessions,
+    this.defaultDeviceId,
+  });
+
+  @override
+  State<_DeviceVolumesFold> createState() => _DeviceVolumesFoldState();
+}
+
+class _DeviceVolumesFoldState extends State<_DeviceVolumesFold> {
+  static const _prefsKey = 'apps_tab_devices_expanded';
+  bool _expanded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    SharedPreferences.getInstance().then((prefs) {
+      final saved = prefs.getBool(_prefsKey) ?? false;
+      if (mounted && saved != _expanded) setState(() => _expanded = saved);
+    });
+  }
+
+  void _toggle() {
+    setState(() => _expanded = !_expanded);
+    SharedPreferences.getInstance()
+        .then((prefs) => prefs.setBool(_prefsKey, _expanded));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(height: 0.5, color: AppColors.border),
+        MouseRegion(
+          cursor: SystemMouseCursors.click,
+          child: GestureDetector(
+            onTap: _toggle,
+            behavior: HitTestBehavior.opaque,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Row(
+                children: [
+                  Icon(
+                    _expanded
+                        ? FluentIcons.chevron_down
+                        : FluentIcons.chevron_right,
+                    size: 8,
+                    color: AppColors.textTertiary,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    l10n.audioOutputs,
+                    style: AppTheme.inter(
+                        fontSize: 11, color: AppColors.textTertiary),
+                  ),
+                  const Spacer(),
+                  Text(
+                    '${widget.devices.where((d) => d.isActive).length}',
+                    style: AppTheme.inter(
+                        fontSize: 10, color: AppColors.textTertiary),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        if (_expanded)
+          DeviceFooter(
+            devices: widget.devices,
+            sessions: widget.sessions,
+            defaultDeviceId: widget.defaultDeviceId,
+            showHeader: false,
+          ),
+      ],
+    );
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
 // macOS toolbar tabs (used inside true macOS MacosScaffold toolbar)
 // ════════════════════════════════════════════════════════════════
 
@@ -357,8 +487,11 @@ class _MacTabBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 44,
+    // Center loosens the ToolBar title's tight width constraint (titleWidth)
+    // so the pill hugs its tabs instead of stretching to the full title box.
+    return Center(
+      child: Container(
+      height: 40,
       decoration: BoxDecoration(
         color: isDarkTheme
             ? Colors.white.withValues(alpha: 0.06)
@@ -396,6 +529,7 @@ class _MacTabBar extends StatelessWidget {
           );
         }),
       ),
+      ),
     );
   }
 }
@@ -431,7 +565,7 @@ class _MacTabButtonState extends State<_MacTabButton> {
         behavior: HitTestBehavior.opaque,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 130),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           decoration: BoxDecoration(
             color: widget.selected
                 ? AppColors.accent.withValues(alpha: isDarkTheme ? 0.22 : 0.12)

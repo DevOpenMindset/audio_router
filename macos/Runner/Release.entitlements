@@ -10,9 +10,10 @@
 	<key>com.apple.security.network.client</key>
 	<true/>
 
-	<!-- Required for CATapDescription / AudioHardwareCreateProcessTap (macOS 14.2+).
-	     Needs a provisioned Developer ID — request via Apple Developer portal. -->
-	<key>com.apple.developer.avfoundation.allow-audio-system-tap</key>
-	<true/>
+	<!-- CATapDescription / AudioHardwareCreateProcessTap needs no special
+	     entitlement — it is gated by the audio-capture TCC prompt driven by
+	     NSAudioCaptureUsageDescription in Info.plist. The restricted
+	     com.apple.developer.avfoundation.allow-audio-system-tap entitlement
+	     that used to be here cannot be ad-hoc signed and broke the build. -->
 </dict>
 </plist>

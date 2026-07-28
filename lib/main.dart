@@ -7,6 +7,7 @@ import 'package:system_tray/system_tray.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'services/audio_service.dart';
+import 'services/panel_controller.dart';
 import 'services/theme_service.dart';
 import 'services/custom_name_service.dart';
 import 'services/update_service.dart';
@@ -42,7 +43,9 @@ Future<void> _initSystemTray() async {
 
   try {
     await _systemTray.initSystemTray(
-      title: 'SoundShift',
+      // Emoji instead of the app name — a name-length text item eats menu-bar
+      // space and looks out of place among icon-only status items.
+      title: Platform.isMacOS ? '🔊' : 'SoundShift',
       iconPath: finalIconPath ?? fallbackIcon,
       toolTip: 'SoundShift — per-app audio routing',
     );
@@ -66,7 +69,10 @@ Future<void> _initSystemTray() async {
       onClicked: (_) async {
         _audioService?.resetAllRoutes();
         await windowManager.setPreventClose(false);
-        await windowManager.close();
+        // destroy() = NSApp.terminate on macOS. close() only performs a
+        // window close, which no longer quits the app now that
+        // applicationShouldTerminateAfterLastWindowClosed is false.
+        await windowManager.destroy();
       },
     ),
   ]);
@@ -75,8 +81,13 @@ Future<void> _initSystemTray() async {
   _systemTray.registerSystemTrayEventHandler((eventName) {
     if (eventName == kSystemTrayEventClick ||
         eventName == kSystemTrayEventDoubleClick) {
-      windowManager.show();
-      windowManager.focus();
+      if (PanelController.enabled) {
+        // macOS: the tray icon toggles a menu-bar style panel.
+        PanelController.toggleFromTray();
+      } else {
+        windowManager.show();
+        windowManager.focus();
+      }
     } else if (eventName == kSystemTrayEventRightClick) {
       _systemTray.popUpContextMenu();
     }
@@ -90,12 +101,17 @@ void main() async {
 
   await windowManager.ensureInitialized();
   
-  // Load saved taskbar preference (default: show in Dock on macOS, hide on Windows)
-  final showInTaskbar = prefs.getBool('show_in_taskbar') ??
-      (Platform.isMacOS || Platform.isLinux ? true : false);
+  // Load saved taskbar preference. Defaults: Linux shows a taskbar entry;
+  // macOS runs as a menu-bar-only accessory (no Dock icon — setSkipTaskbar
+  // maps to NSApp.setActivationPolicy(.accessory)); Windows lives in the tray.
+  final showInTaskbar = prefs.getBool('show_in_taskbar') ?? Platform.isLinux;
 
-  // Restore saved window size (default 520×600, min 520×520, no max)
-  final savedW = prefs.getDouble('window_width')  ?? 520.0;
+  // Restore saved window size (default 520×600, min 520×520, no max).
+  // macOS panel mode ignores the saved width: a menu-bar popover keeps the
+  // fixed design width like Control Center does (height stays adjustable).
+  final savedW = Platform.isMacOS
+      ? 520.0
+      : (prefs.getDouble('window_width') ?? 520.0);
   final savedH = prefs.getDouble('window_height') ?? 600.0;
 
   // Platform-specific window options
@@ -158,6 +174,46 @@ class SoundShiftApp extends StatelessWidget {
               title: 'SoundShift',
               debugShowCheckedModeBanner: false,
               theme: AppTheme.macosCurrent,
+              // Mirror of the FluentApp.builder trick below: previewing the
+              // Windows/Linux style on real macOS makes the adaptive widgets
+              // build fluent_ui / Material leaves, which need their theme and
+              // localization ancestors that MacosApp doesn't provide. Without
+              // this every fluent/Material widget grey-boxes.
+              builder: (ctx, child) {
+                if (_plat.isWindows) {
+                  return Localizations.override(
+                    context: ctx,
+                    delegates: const [FluentLocalizations.delegate],
+                    child: FluentTheme(
+                      data: AppTheme.current,
+                      child: child!,
+                    ),
+                  );
+                }
+                if (_plat.isLinux) {
+                  return Localizations.override(
+                    context: ctx,
+                    delegates: const [
+                      material.DefaultMaterialLocalizations.delegate,
+                    ],
+                    child: material.Theme(
+                      data: isDarkTheme
+                          ? AppTheme.linuxDarkTheme
+                          : AppTheme.linuxLightTheme,
+                      child: material.Material(
+                        color: AppColors.bgPrimary,
+                        child: material.ScaffoldMessenger(
+                          child: material.Scaffold(
+                            backgroundColor: AppColors.bgPrimary,
+                            body: child!,
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }
+                return child!;
+              },
               home: macos.MacosWindow(child: const HomeScreen()),
             );
           }
@@ -170,6 +226,27 @@ class SoundShiftApp extends StatelessWidget {
               themeMode: isDarkTheme
                   ? material.ThemeMode.dark
                   : material.ThemeMode.light,
+              // Same ancestor-injection as the MacosApp/FluentApp branches,
+              // for previewing the Windows/macOS styles on Linux.
+              builder: (ctx, child) {
+                if (_plat.isWindows) {
+                  return Localizations.override(
+                    context: ctx,
+                    delegates: const [FluentLocalizations.delegate],
+                    child: FluentTheme(
+                      data: AppTheme.current,
+                      child: child!,
+                    ),
+                  );
+                }
+                if (_plat.isMacOS) {
+                  return macos.MacosTheme(
+                    data: AppTheme.macosCurrent,
+                    child: child!,
+                  );
+                }
+                return child!;
+              },
               home: const HomeScreen(),
             );
           }

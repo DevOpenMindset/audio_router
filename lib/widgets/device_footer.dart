@@ -13,12 +13,16 @@ class DeviceFooter extends StatelessWidget {
   final List<AudioDevice> devices;
   final List<AudioSession> sessions;
   final String? defaultDeviceId;
+  // Hidden when embedded under an external header (e.g. the collapsible
+  // device-volumes section on the Apps tab).
+  final bool showHeader;
 
   const DeviceFooter({
     super.key,
     required this.devices,
     required this.sessions,
     this.defaultDeviceId,
+    this.showHeader = true,
   });
 
   @override
@@ -37,33 +41,35 @@ class DeviceFooter extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(height: 0.5, color: AppColors.border),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Text(
-              l10n.audioOutputs,
-              style: AppTheme.inter(fontSize: 11, color: AppColors.textTertiary),
-            ),
-            const Spacer(),
-            // Mute all toggle
-            _MiniActionButton(
-              label: context.watch<AudioService>().allMuted ? '🔇' : '🔊',
-              tooltip: context.read<AudioService>().allMuted ? l10n.unmuteAll : l10n.muteAll,
-              onTap: () => context.read<AudioService>().toggleMuteAll(),
-              accentColor: accentColor,
-            ),
-            const SizedBox(width: 6),
-            // Open OS sound settings
-            _MiniActionButton(
-              label: '⚙',
-              tooltip: l10n.openSoundSettings,
-              onTap: () => context.read<AudioService>().openSoundSettings(),
-              accentColor: accentColor,
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
+        if (showHeader) ...[
+          Container(height: 0.5, color: AppColors.border),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Text(
+                l10n.audioOutputs,
+                style: AppTheme.inter(fontSize: 11, color: AppColors.textTertiary),
+              ),
+              const Spacer(),
+              // Mute all toggle
+              _MiniActionButton(
+                label: context.watch<AudioService>().allMuted ? '🔇' : '🔊',
+                tooltip: context.read<AudioService>().allMuted ? l10n.unmuteAll : l10n.muteAll,
+                onTap: () => context.read<AudioService>().toggleMuteAll(),
+                accentColor: accentColor,
+              ),
+              const SizedBox(width: 6),
+              // Open OS sound settings
+              _MiniActionButton(
+                label: '⚙',
+                tooltip: l10n.openSoundSettings,
+                onTap: () => context.read<AudioService>().openSoundSettings(),
+                accentColor: accentColor,
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+        ],
         // Active devices with volume sliders
         ...activeDevices.map((device) {
               // Aggregate peak across all sessions on this device
@@ -276,7 +282,9 @@ class _MiniActionButtonState extends State<_MiniActionButton> {
 
   @override
   Widget build(BuildContext context) {
-    return Tooltip(
+    // PlainTooltip, not fluent_ui Tooltip: this widget renders inside the
+    // MacosApp tree too, where FluentTheme.of crashes (grey settings tab).
+    return PlainTooltip(
       message: widget.tooltip,
       child: MouseRegion(
         cursor: SystemMouseCursors.click,

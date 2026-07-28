@@ -22,6 +22,7 @@
 #define PROC_NAME_LEN 256
 #endif
 
+#include <chrono>
 #include <string>
 #include <vector>
 #include <map>
@@ -30,16 +31,13 @@
 #include <cstring>
 #include <algorithm>
 
-// Process audio object properties — macOS 12+
-#ifndef kAudioHardwarePropertyProcessObjectList
-#define kAudioHardwarePropertyProcessObjectList 'plst'
-#endif
-#ifndef kAudioProcessPropertyPID
-#define kAudioProcessPropertyPID 'ppid'
-#endif
-#ifndef kAudioProcessPropertyIsRunningOutput
-#define kAudioProcessPropertyIsRunningOutput 'poro'
-#endif
+// Process audio object properties come from the SDK's AudioHardware.h
+// (kAudioHardwarePropertyProcessObjectList = 'prs#', kAudioProcessPropertyPID
+// = 'ppid', kAudioProcessPropertyIsRunningOutput = 'piro'). Do NOT re-define
+// them behind #ifndef: they are C enums, not macros, so the guard always
+// fires and a wrong four-char code here silently breaks session enumeration
+// (GetPropertyDataSize returns kAudioHardwareUnknownPropertyError → the app
+// falls back to an empty session list). Requires the macOS 14.4+ SDK.
 
 // Per-process device routing — macOS 14+
 #ifndef kAudioProcessPropertyDevice
@@ -51,9 +49,14 @@
 // Guarded by @available at runtime.
 
 #if __MAC_OS_X_VERSION_MAX_ALLOWED < 140200
+typedef NS_ENUM(NSInteger, CATapMuteBehavior) {
+    CATapUnmuted = 0,
+    CATapMuted = 1,
+    CATapMutedWhenTapped = 2,
+};
 @interface CATapDescription : NSObject
 - (instancetype)initStereoMixdownOfProcesses:(NSArray<NSNumber *> *)processObjectIDs;
-@property (nonatomic, copy) NSArray<NSNumber *> *mutedProcesses;
+@property (atomic, readwrite, getter=isMuted) CATapMuteBehavior muteBehavior;
 @property (nonatomic, copy) NSString *name;
 @end
 extern "C" OSStatus AudioHardwareCreateProcessTap(CATapDescription *inDesc, AudioObjectID *outTapID);
@@ -74,9 +77,14 @@ static std::mutex g_mutex;
 static std::map<pid_t, AudioObjectID> g_pidToDevice;
 
 // Tap routing state (macOS 14.2+): one engine per routed PID
-static NSMutableDictionary<NSNumber *, AVAudioEngine *>    *g_tapEngines;
+static NSMutableDictionary<NSNumber *, AVAudioEngine *>    *g_tapEngines; // playback engines
+static NSMutableDictionary<NSNumber *, AVAudioEngine *>    *g_capEngines; // capture engines
 static NSMutableDictionary<NSNumber *, AVAudioMixerNode *> *g_tapMixers;
 static NSMutableDictionary<NSNumber *, NSNumber *>         *g_tapIDs;   // tapObjectID
+static NSMutableDictionary<NSNumber *, NSNumber *>         *g_tapAggs;  // aggregate deviceID
+// Failed StartTapRoute attempts per pid: back off so the Dart layer's 2 s
+// refresh (which re-applies persisted volumes) can't hammer tap creation.
+static std::map<pid_t, std::chrono::steady_clock::time_point> g_tapFailedAt;
 
 // ─── UTF-16 Helpers ──────────────────────────────────────────
 
@@ -116,8 +124,10 @@ AUDIO_API int32_t audio_init(void) {
     std::lock_guard<std::mutex> lock(g_mutex);
     if (g_initialized) return 0;
     g_tapEngines = [NSMutableDictionary new];
+    g_capEngines = [NSMutableDictionary new];
     g_tapMixers  = [NSMutableDictionary new];
     g_tapIDs     = [NSMutableDictionary new];
+    g_tapAggs    = [NSMutableDictionary new];
     g_initialized = true;
     return 0;
 }
@@ -211,6 +221,18 @@ static std::vector<AudioDeviceInfo> EnumerateDevices() {
 
     for (AudioObjectID devId : ids) {
         if (!IsOutputDevice(devId)) continue;
+
+        // Skip our own tap aggregates — kAudioAggregateDeviceIsPrivateKey
+        // hides them from other processes but NOT from the creating process,
+        // so without this they appear (and can be routed into, creating a
+        // feedback loop) in our own device picker.
+        {
+            bool ours = false;
+            for (NSNumber *aggNum in [g_tapAggs allValues]) {
+                if ((AudioObjectID)[aggNum unsignedIntValue] == devId) { ours = true; break; }
+            }
+            if (ours) continue;
+        }
 
         AudioDeviceInfo info = {};
         char idStr[32];
@@ -401,9 +423,21 @@ AUDIO_API int32_t audio_get_sessions(AudioSessionInfo *sessions, int32_t max_cou
 static void StopTapForPid_nolock(pid_t pid) {
     @autoreleasepool {
         NSNumber *key = @(pid);
+        AVAudioEngine *cap = g_capEngines[key];
+        if (cap) {
+            @try { [cap.inputNode removeTapOnBus:0]; } @catch (NSException *e) {}
+            [cap stop];
+            [g_capEngines removeObjectForKey:key];
+        }
         AVAudioEngine *eng = g_tapEngines[key];
         if (eng) { [eng stop]; [g_tapEngines removeObjectForKey:key]; }
         [g_tapMixers removeObjectForKey:key];
+
+        NSNumber *aggNum = g_tapAggs[key];
+        if (aggNum) {
+            AudioHardwareDestroyAggregateDevice((AudioObjectID)[aggNum unsignedIntValue]);
+            [g_tapAggs removeObjectForKey:key];
+        }
 
         NSNumber *tapNum = g_tapIDs[key];
         if (tapNum) {
@@ -417,10 +451,18 @@ static void StopTapForPid_nolock(pid_t pid) {
 
 static void StopAllTapRoutes() {
     @autoreleasepool {
+        for (NSNumber *key in [g_capEngines allKeys]) {
+            AVAudioEngine *cap = g_capEngines[key];
+            @try { [cap.inputNode removeTapOnBus:0]; } @catch (NSException *e) {}
+            [cap stop];
+        }
+        [g_capEngines removeAllObjects];
         for (NSNumber *key in [g_tapEngines allKeys]) {
             AVAudioEngine *eng = g_tapEngines[key];
             if (eng) [eng stop];
         }
+        for (NSNumber *aggNum in [g_tapAggs allValues])
+            AudioHardwareDestroyAggregateDevice((AudioObjectID)[aggNum unsignedIntValue]);
         if (@available(macOS 14.2, *)) {
             for (NSNumber *tapNum in [g_tapIDs allValues])
                 AudioHardwareDestroyProcessTap((AudioObjectID)[tapNum unsignedIntValue]);
@@ -428,6 +470,7 @@ static void StopAllTapRoutes() {
         [g_tapEngines removeAllObjects];
         [g_tapMixers  removeAllObjects];
         [g_tapIDs     removeAllObjects];
+        [g_tapAggs    removeAllObjects];
     }
 }
 
@@ -435,62 +478,143 @@ static void StopAllTapRoutes() {
 // Returns 0 on success, negative on error.
 static int32_t StartTapRoute(pid_t pid, AudioObjectID processObj, AudioObjectID targetDev) {
     if (@available(macOS 14.2, *)) {
-        StopTapForPid_nolock(pid);
+        // Snapshot the existing route (if any) but do NOT stop it yet: tearing
+        // the old tap down before the new one exists unmutes the process for a
+        // moment, leaking a burst of audio to the default device mid-switch.
+        // The old route is destroyed after the new one is running (below).
+        NSNumber *pidKey = @(pid);
+        AVAudioEngine *oldCap   = g_capEngines[pidKey];
+        AVAudioEngine *oldPlay  = g_tapEngines[pidKey];
+        NSNumber      *oldTap   = g_tapIDs[pidKey];
+        NSNumber      *oldAgg   = g_tapAggs[pidKey];
+        AVAudioMixerNode *oldMixer = g_tapMixers[pidKey];
+        // Preserve the per-app volume across the switch — a fresh engine's
+        // mixer is at 1.0, which caused an audible jump until the Dart layer
+        // re-applied the persisted volume seconds later.
+        float carriedVolume = oldMixer ? oldMixer.outputVolume : 1.0f;
 
         // Create the tap — captures this process and silences its original output.
         CATapDescription *desc = [[CATapDescription alloc]
             initStereoMixdownOfProcesses:@[@(processObj)]];
-#if __MAC_OS_X_VERSION_MAX_ALLOWED < 260000
-        desc.mutedProcesses = @[@(processObj)];
-#endif
+        // Silence the process's direct output while our engine reads the tap;
+        // without this the app keeps playing on its original device and
+        // routing appears to do nothing. (A `mutedProcesses` property was
+        // used here before — it does not exist in any SDK.)
+        desc.muteBehavior = CATapMutedWhenTapped;
         desc.name = [NSString stringWithFormat:@"AudioRouter-%d", (int)pid];
 
         AudioObjectID tapDev = 0;
         OSStatus st = AudioHardwareCreateProcessTap(desc, &tapDev);
-        if (st != noErr) return (int32_t)st;
-
-        // Build an engine: tap input → mixer → target output
-        AVAudioEngine *engine = [[AVAudioEngine alloc] init];
-
-        // Point inputNode at the tap virtual device
-        AudioUnit inputUnit = engine.inputNode.audioUnit;
-        st = AudioUnitSetProperty(inputUnit,
-            kAudioOutputUnitProperty_CurrentDevice,
-            kAudioUnitScope_Global, 0,
-            &tapDev, sizeof(AudioObjectID));
         if (st != noErr) {
+            fprintf(stderr, "[audio_backend] CreateProcessTap failed st=%d\n", (int)st);
+            return (int32_t)st;
+        }
+
+        // A tap object is not a device, so no AudioUnit can read it directly.
+        // Wrap it in a private TAP-ONLY aggregate: its input channels are then
+        // exactly the tap's stereo mixdown. (Adding the target device as a
+        // sub-device does NOT work — the sub-device's own input channels, e.g.
+        // a headset microphone, take priority over the tap on the input bus.)
+        NSDictionary *aggDict = @{
+            @kAudioAggregateDeviceNameKey: [NSString stringWithFormat:@"SoundShift-%d", (int)pid],
+            @kAudioAggregateDeviceUIDKey: [[NSUUID UUID] UUIDString],
+            @kAudioAggregateDeviceIsPrivateKey: @YES,
+            @kAudioAggregateDeviceTapListKey: @[
+                @{ @kAudioSubTapUIDKey: [desc.UUID UUIDString],
+                   @kAudioSubTapDriftCompensationKey: @YES },
+            ],
+            @kAudioAggregateDeviceTapAutoStartKey: @YES,
+        };
+        AudioObjectID aggDev = 0;
+        st = AudioHardwareCreateAggregateDevice((__bridge CFDictionaryRef)aggDict, &aggDev);
+        if (st != noErr) {
+            fprintf(stderr, "[audio_backend] CreateAggregateDevice failed st=%d\n", (int)st);
             AudioHardwareDestroyProcessTap(tapDev);
             return (int32_t)st;
         }
 
-        // Point outputNode at target device
-        AudioUnit outputUnit = engine.outputNode.audioUnit;
-        st = AudioUnitSetProperty(outputUnit,
-            kAudioOutputUnitProperty_CurrentDevice,
-            kAudioUnitScope_Global, 0,
-            &targetDev, sizeof(AudioObjectID));
-        if (st != noErr) {
+        // Two engines: AVAudioEngine cannot span two devices in one graph, so
+        // a capture engine reads the tap aggregate and hands buffers to a
+        // playback engine rendering on the target device via a player node.
+        Float64 sr = 0;
+        UInt32 ss = sizeof(sr);
+        AudioObjectPropertyAddress srAddr = {
+            kAudioDevicePropertyNominalSampleRate,
+            kAudioObjectPropertyScopeGlobal,
+            kAudioObjectPropertyElementMain
+        };
+        AudioObjectGetPropertyData(aggDev, &srAddr, 0, nullptr, &ss, &sr);
+        if (sr < 8000) sr = 48000;
+        AVAudioFormat *fmt = [[AVAudioFormat alloc]
+            initStandardFormatWithSampleRate:sr channels:2];
+
+        AVAudioEngine *capEngine  = [[AVAudioEngine alloc] init];
+        AVAudioEngine *playEngine = [[AVAudioEngine alloc] init];
+        AVAudioPlayerNode *player = [[AVAudioPlayerNode alloc] init];
+
+        int32_t rc = -5;
+        @try {
+            AudioUnit inputUnit = capEngine.inputNode.audioUnit;
+            st = AudioUnitSetProperty(inputUnit,
+                kAudioOutputUnitProperty_CurrentDevice,
+                kAudioUnitScope_Global, 0,
+                &aggDev, sizeof(AudioObjectID));
+            if (st != noErr) @throw [NSException exceptionWithName:@"au" reason:@"input device" userInfo:nil];
+
+            AudioUnit outputUnit = playEngine.outputNode.audioUnit;
+            st = AudioUnitSetProperty(outputUnit,
+                kAudioOutputUnitProperty_CurrentDevice,
+                kAudioUnitScope_Global, 0,
+                &targetDev, sizeof(AudioObjectID));
+            if (st != noErr) @throw [NSException exceptionWithName:@"au" reason:@"output device" userInfo:nil];
+
+            [playEngine attachNode:player];
+            [playEngine connect:player to:playEngine.mainMixerNode format:fmt];
+
+            NSError *err = nil;
+            [playEngine startAndReturnError:&err];
+            if (err) @throw [NSException exceptionWithName:@"au" reason:@"play start" userInfo:nil];
+            [player play];
+
+            [capEngine.inputNode installTapOnBus:0 bufferSize:2048 format:fmt
+                block:^(AVAudioPCMBuffer *buf, AVAudioTime *when) {
+                    [player scheduleBuffer:buf completionHandler:nil];
+                }];
+            err = nil;
+            [capEngine startAndReturnError:&err];
+            if (err) {
+                [capEngine.inputNode removeTapOnBus:0];
+                @throw [NSException exceptionWithName:@"au" reason:@"capture start" userInfo:nil];
+            }
+            rc = 0;
+        } @catch (NSException *ex) {
+            fprintf(stderr, "[audio_backend] tap route failed: %s\n", ex.reason.UTF8String);
+            [playEngine stop];
+            AudioHardwareDestroyAggregateDevice(aggDev);
             AudioHardwareDestroyProcessTap(tapDev);
-            return (int32_t)st;
+            return rc;
         }
 
-        // Mixer node: input → mixer → output (handles format conversion + volume)
-        AVAudioMixerNode *mixer = [[AVAudioMixerNode alloc] init];
-        [engine attachNode:mixer];
-        [engine connect:engine.inputNode to:mixer    format:nil];
-        [engine connect:mixer            to:engine.outputNode format:nil];
+        playEngine.mainMixerNode.outputVolume = carriedVolume;
 
-        NSError *err = nil;
-        [engine startAndReturnError:&err];
-        if (err) {
-            AudioHardwareDestroyProcessTap(tapDev);
-            return -2;
+        // Store — playback engine under g_tapEngines, its main mixer carries
+        // per-app volume; capture engine tracked separately.
+        g_capEngines[pidKey] = capEngine;
+        g_tapEngines[pidKey] = playEngine;
+        g_tapMixers [pidKey] = playEngine.mainMixerNode;
+        g_tapIDs    [pidKey] = @(tapDev);
+        g_tapAggs   [pidKey] = @(aggDev);
+
+        // New route is live — now retire the old one. Both taps mute the
+        // process during the overlap, so there is no leak to the default
+        // device and at worst a few ms of doubled output on the old target.
+        if (oldCap) {
+            @try { [oldCap.inputNode removeTapOnBus:0]; } @catch (NSException *e) {}
+            [oldCap stop];
         }
-
-        // Store
-        g_tapEngines[@(pid)] = engine;
-        g_tapMixers [@(pid)] = mixer;
-        g_tapIDs    [@(pid)] = @(tapDev);
+        if (oldPlay) [oldPlay stop];
+        if (oldAgg) AudioHardwareDestroyAggregateDevice((AudioObjectID)[oldAgg unsignedIntValue]);
+        if (oldTap) AudioHardwareDestroyProcessTap((AudioObjectID)[oldTap unsignedIntValue]);
         return 0;
     }
     return -100; // macOS < 14.2
@@ -559,24 +683,53 @@ AUDIO_API int32_t audio_get_vtable_slot(void) { return -1; }
 
 // ─── Per-App Volume (works via tap mixer on macOS 14.2+) ─────
 
-AUDIO_API int32_t audio_set_volume(uint32_t process_id, float volume) {
-    @autoreleasepool {
-        AVAudioMixerNode *mx = g_tapMixers[@((pid_t)process_id)];
-        if (mx) {
-            mx.outputVolume = std::max(0.0f, std::min(1.0f, volume));
-            return 0;
+// macOS has no per-process volume API, so volume/mute go through the tap
+// engine's mixer node. If the app isn't routed yet, lazily create a tap to
+// its current device (routed target or system default) so the mixer exists.
+static AVAudioMixerNode *MixerForPid_nolock(pid_t pid, bool createIfMissing) {
+    AVAudioMixerNode *mx = g_tapMixers[@(pid)];
+    if (mx || !createIfMissing) return mx;
+    if (@available(macOS 14.2, *)) {
+        // Back off after a failure — the Dart refresh re-applies persisted
+        // volumes every 2 s, which would otherwise retry tap creation forever.
+        auto failed = g_tapFailedAt.find(pid);
+        if (failed != g_tapFailedAt.end() &&
+            std::chrono::steady_clock::now() - failed->second < std::chrono::seconds(30)) {
+            return nil;
         }
+        AudioObjectID processObj = FindProcessObject(pid);
+        if (processObj == kAudioObjectUnknown) return nil;
+        auto it = g_pidToDevice.find(pid);
+        AudioObjectID dev = (it != g_pidToDevice.end())
+            ? it->second : GetDefaultOutputDevice();
+        if (dev == kAudioObjectUnknown) return nil;
+        if (StartTapRoute(pid, processObj, dev) != 0) {
+            g_tapFailedAt[pid] = std::chrono::steady_clock::now();
+            return nil;
+        }
+        g_tapFailedAt.erase(pid);
+        return g_tapMixers[@(pid)];
     }
-    return 0; // no-op if no tap route
+    return nil;
+}
+
+AUDIO_API int32_t audio_set_volume(uint32_t process_id, float volume) {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    float v = std::max(0.0f, std::min(1.0f, volume));
+    @autoreleasepool {
+        // Only spin up a tap when the volume actually deviates from unity;
+        // setting 100% on an untapped app is a no-op anyway.
+        AVAudioMixerNode *mx = MixerForPid_nolock((pid_t)process_id, v < 0.999f);
+        if (mx) mx.outputVolume = v;
+    }
+    return 0;
 }
 
 AUDIO_API int32_t audio_set_mute(uint32_t process_id, int32_t muted) {
+    std::lock_guard<std::mutex> lock(g_mutex);
     @autoreleasepool {
-        AVAudioMixerNode *mx = g_tapMixers[@((pid_t)process_id)];
-        if (mx) {
-            mx.outputVolume = muted ? 0.0f : 1.0f;
-            return 0;
-        }
+        AVAudioMixerNode *mx = MixerForPid_nolock((pid_t)process_id, muted != 0);
+        if (mx) mx.outputVolume = muted ? 0.0f : 1.0f;
     }
     return 0;
 }
@@ -870,4 +1023,32 @@ AUDIO_API int32_t audio_stop_mirror(const uint16_t* source_device_id,
 
 AUDIO_API void audio_stop_all_mirrors(void) {
     // no-op on macOS
+}
+
+// ─── OS Integration ──────────────────────────────────────────
+
+AUDIO_API int32_t audio_open_sound_settings(void) {
+    NSURL *url = [NSURL URLWithString:
+        @"x-apple.systempreferences:com.apple.preference.sound"];
+    return [[NSWorkspace sharedWorkspace] openURL:url] ? 0 : -1;
+}
+
+AUDIO_API uint32_t audio_get_accent_color(void) {
+    if (@available(macOS 10.14, *)) {
+        __block uint32_t argb = 0;
+        void (^read)(void) = ^{
+            NSColor *accent = [[NSColor controlAccentColor]
+                colorUsingColorSpace:[NSColorSpace sRGBColorSpace]];
+            if (accent) {
+                uint32_t r = (uint32_t)lround(accent.redComponent   * 255.0);
+                uint32_t g = (uint32_t)lround(accent.greenComponent * 255.0);
+                uint32_t b = (uint32_t)lround(accent.blueComponent  * 255.0);
+                argb = 0xFF000000u | (r << 16) | (g << 8) | b;
+            }
+        };
+        if ([NSThread isMainThread]) read();
+        else dispatch_sync(dispatch_get_main_queue(), read);
+        return argb;
+    }
+    return 0;
 }

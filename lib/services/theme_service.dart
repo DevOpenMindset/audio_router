@@ -5,14 +5,23 @@ import 'package:window_manager/window_manager.dart';
 import '../theme/app_theme.dart';
 import '../platform.dart' as _plat;
 
+/// Default UI language: follow the OS language when it's one we support,
+/// otherwise English. (Supported: en / fr / es.)
+String _systemDefaultLocale() {
+  final lang = Platform.localeName.split(RegExp(r'[_\-.]')).first.toLowerCase();
+  const supported = {'en', 'fr', 'es'};
+  return supported.contains(lang) ? lang : 'en';
+}
+
 class ThemeService extends ChangeNotifier {
   bool _isDarkMode = true;
   /// 'win' = Windows 11 UI, 'mac' = macOS UI
   String _uiStyle = Platform.isWindows ? 'win' : 'mac';
-  String _locale = 'fr';
+  String _locale = _systemDefaultLocale();
   bool _loaded = false;
-  // macOS: show in Dock by default; Windows: hidden from taskbar by default (lives in tray)
-  bool _showInTaskbar = Platform.isMacOS ? true : false;
+  // Defaults: Linux shows a taskbar entry; macOS is a menu-bar-only accessory
+  // (no Dock icon); Windows lives in the tray.
+  bool _showInTaskbar = Platform.isLinux;
   bool _useOSAccent = true;
   Color? _accentColor;
 
@@ -34,9 +43,8 @@ class ThemeService extends ChangeNotifier {
       _isDarkMode = prefs.getBool('dark_mode') ?? true;
       _uiStyle = prefs.getString('ui_style') ??
           (Platform.isWindows ? 'win' : 'mac');
-      _locale = prefs.getString('locale') ?? 'fr';
-      _showInTaskbar = prefs.getBool('show_in_taskbar') ??
-          (Platform.isMacOS ? true : false);
+      _locale = prefs.getString('locale') ?? _systemDefaultLocale();
+      _showInTaskbar = prefs.getBool('show_in_taskbar') ?? Platform.isLinux;
       _useOSAccent = prefs.getBool('use_os_accent') ?? true;
       final accentValue = prefs.getInt('accent_color');
       if (accentValue != null) {

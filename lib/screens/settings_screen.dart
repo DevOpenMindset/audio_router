@@ -177,31 +177,35 @@ class SettingsScreen extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-            child: Row(
-              children: [
-                Text(
-                  l10n.settings,
-                  style: AppTheme.inter(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
+          // Header with a Done button — dialog mode only. Inline (as a tab)
+          // there is no pushed route: popping would empty the root Navigator
+          // and leave a black window.
+          if (!inline) ...[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+              child: Row(
+                children: [
+                  Text(
+                    l10n.settings,
+                    style: AppTheme.inter(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
                   ),
-                ),
-                const Spacer(),
-                macos.PushButton(
-                  controlSize: macos.ControlSize.small,
-                  secondary: true,
-                  onPressed: () => Navigator.pop(context),
-                  child: Text(l10n.done),
-                ),
-              ],
+                  const Spacer(),
+                  macos.PushButton(
+                    controlSize: macos.ControlSize.small,
+                    secondary: true,
+                    onPressed: () => Navigator.pop(context),
+                    child: Text(l10n.done),
+                  ),
+                ],
+              ),
             ),
-          ),
-          Container(height: 0.5, color: AppColors.border),
-          const SizedBox(height: 4),
+            Container(height: 0.5, color: AppColors.border),
+            const SizedBox(height: 4),
+          ],
 
           // General section
           _macSection(l10n.general),
