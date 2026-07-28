@@ -154,6 +154,9 @@ class _SessionCardState extends State<SessionCard> {
                   children: [
                     NativeAppIcon(
                       processId: widget.session.processId,
+                      // Multi-process apps: the primary pid may be a helper
+                      // with no icon; siblings usually include the GUI app.
+                      fallbackProcessIds: widget.session.extraProcessIds,
                       processName: widget.session.processName,
                       size: 34,
                     ),

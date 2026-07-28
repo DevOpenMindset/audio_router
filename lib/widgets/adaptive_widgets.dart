@@ -649,3 +649,73 @@ void showAdaptiveNotification(
     duration: const Duration(seconds: 3),
   );
 }
+
+// ─── PlainTooltip: tooltip with no theme-ancestor requirement ───────────────
+// fluent_ui's Tooltip calls FluentTheme.of and crashes inside MacosApp (the
+// macOS widget tree has no FluentApp ancestor). This renders a plain overlay
+// bubble instead, so it is safe in every framework tree.
+
+class PlainTooltip extends StatefulWidget {
+  final String message;
+  final Widget child;
+  const PlainTooltip({super.key, required this.message, required this.child});
+
+  @override
+  State<PlainTooltip> createState() => _PlainTooltipState();
+}
+
+class _PlainTooltipState extends State<PlainTooltip> {
+  OverlayEntry? _entry;
+
+  void _show(BuildContext context) {
+    final box = context.findRenderObject() as RenderBox?;
+    if (box == null) return;
+    final pos = box.localToGlobal(Offset.zero);
+    _entry = OverlayEntry(
+      builder: (_) => Positioned(
+        left: pos.dx,
+        top: pos.dy - 28,
+        child: IgnorePointer(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: isDarkTheme
+                  ? const Color(0xFF303030)
+                  : const Color(0xFF1A1A1A),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              widget.message,
+              style: const TextStyle(
+                fontSize: 11,
+                color: Color(0xFFEEEEEE),
+                decoration: TextDecoration.none,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    Overlay.of(context).insert(_entry!);
+  }
+
+  void _hide() {
+    _entry?.remove();
+    _entry = null;
+  }
+
+  @override
+  void dispose() {
+    _hide();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => _show(context),
+      onExit: (_) => _hide(),
+      child: widget.child,
+    );
+  }
+}

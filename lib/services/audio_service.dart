@@ -58,6 +58,11 @@ class AudioService extends ChangeNotifier {
   // App rules: auto-route when a specific app opens
   List<AppRule> _appRules = [];
 
+  // macOS: process names that have produced audio during this run — used to
+  // keep open-but-momentarily-silent apps visible while hiding the dozens of
+  // never-audible CoreAudio-registered services.
+  final Set<String> _everAudibleNames = {};
+
   List<AudioDevice> get devices => List.unmodifiable(_devices);
   List<AudioSession> get sessions => List.unmodifiable(_sessions);
   // All non-expired sessions (expired are already filtered in native code).
@@ -248,11 +253,31 @@ class AudioService extends ChangeNotifier {
         }
       }
 
-      // Group sessions by process name — one card per app (handles multi-process
-      // browsers, Electron apps, etc. that spawn multiple audio sessions).
+      // On macOS the process object list contains every process registered
+      // with CoreAudio (media daemons, background services…), not just apps
+      // playing audio. Only surface sessions that are audible now, have been
+      // audible during this run, or that the user has routed.
+      var visible = rebuilt;
+      if (Platform.isMacOS) {
+        for (final s in rebuilt) {
+          if (s.isActive) _everAudibleNames.add(s.processName.toLowerCase());
+        }
+        visible = rebuilt.where((s) {
+          final nameKey = s.processName.toLowerCase();
+          return s.isActive ||
+              _everAudibleNames.contains(nameKey) ||
+              _persistedRoutes.containsKey(s.processId) ||
+              _routeMemory.containsKey(nameKey);
+        }).toList();
+      }
+
+      // Group sessions by display name — one card per app. Grouping by
+      // display (not process) name folds helper processes that render under
+      // the same app identity (e.g. "Spotify" + "Spotify Helper" both
+      // display as "Spotify") into a single card.
       final byName = <String, List<AudioSession>>{};
-      for (final s in rebuilt) {
-        byName.putIfAbsent(s.processName.toLowerCase(), () => []).add(s);
+      for (final s in visible) {
+        byName.putIfAbsent(s.displayName.toLowerCase(), () => []).add(s);
       }
       _sessions = byName.values.map((group) {
         if (group.length == 1) return group.first;

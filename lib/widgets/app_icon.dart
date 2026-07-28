@@ -8,12 +8,16 @@ import '../theme/app_theme.dart';
 
 class NativeAppIcon extends StatefulWidget {
   final String processId;
+  /// Sibling pids of a grouped multi-process app, tried in order when the
+  /// primary pid has no icon (helper processes have no NSRunningApplication).
+  final List<String> fallbackProcessIds;
   final String processName;
   final double size;
 
   const NativeAppIcon({
     super.key,
     required this.processId,
+    this.fallbackProcessIds = const [],
     required this.processName,
     this.size = 32,
   });
@@ -38,13 +42,20 @@ class _NativeAppIconState extends State<NativeAppIcon> {
   void didUpdateWidget(NativeAppIcon oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.processId != widget.processId) {
+      // Clear the previous app's image immediately: keeping it while the new
+      // fetch runs (or fails) leaves this card wearing another app's icon
+      // after the session list reorders.
+      setState(() {
+        _image = null;
+        _loaded = false;
+      });
       _loadIcon();
     }
   }
 
   Future<void> _loadIcon() async {
     final pid = widget.processId;
-    if (_cache.containsKey(pid)) {
+    if (_cache.containsKey(pid) && _cache[pid] != null) {
       if (mounted) {
         setState(() {
           _image = _cache[pid];
@@ -54,10 +65,19 @@ class _NativeAppIconState extends State<NativeAppIcon> {
       return;
     }
 
-    final bytes = context.read<AudioService>().getAppIconBytes(pid);
+    Uint8List? bytes;
+    for (final candidate in [pid, ...widget.fallbackProcessIds]) {
+      bytes = context.read<AudioService>().getAppIconBytes(candidate);
+      if (bytes != null) break;
+    }
     if (bytes == null) {
       _cache[pid] = null;
-      if (mounted) setState(() => _loaded = true);
+      if (mounted) {
+        setState(() {
+          _image = null;
+          _loaded = true;
+        });
+      }
       return;
     }
 
